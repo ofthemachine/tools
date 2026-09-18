@@ -120,6 +120,20 @@ for name, pack in packs.items():
     for stem in pack.get("tools", []):
         if not any(t["pack"] == name and t["stem"] == stem for t in tools):
             err(f"manifest.json: pack {name} lists tool {stem!r} that has no tool record")
+    # <pack>.tar.gz is the pack directory as one file: same members, same bytes, same modes.
+    tgz = root / f"{name}.tar.gz"
+    if not tgz.is_file():
+        err(f"{name}.tar.gz: missing")
+    else:
+        with tarfile.open(tgz, "r:gz") as tar:
+            members = {m.name: m for m in tar.getmembers() if m.isfile()}
+            on_disk = {str(f.relative_to(root)): f for f in pack_dir.rglob("*") if f.is_file()}
+            if set(members) != set(on_disk):
+                err(f"{name}.tar.gz: members differ from {name}/ ({sorted(set(members) ^ set(on_disk))})")
+            for m_name, m in members.items():
+                f = on_disk.get(m_name)
+                if f and (tar.extractfile(m).read() != f.read_bytes() or (m.mode & 0o111) != (f.stat().st_mode & 0o111)):
+                    err(f"{name}.tar.gz: {m_name} differs from the directory copy")
 
 # 3. Every tool: present, executable, and byte-identical to what was compiled (procedure_hash).
 for t in tools:
@@ -134,6 +148,8 @@ for t in tools:
         err(f"{t['path']}: procedure_hash {actual} differs from manifest.json ({t.get('procedure_hash')}); the copy is not byte-identical")
     if t.get("network") not in ("none", "required"):
         err(f"{t['path']}: network must be 'none' or 'required', got {t.get('network')!r}")
+    if "@sha256:" not in str(t.get("image", "")):
+        err(f"{t['path']}: image {t.get('image')!r} is not pinned by digest")
 
 # 4. llms.txt: the H1 and every link resolve.
 llms = root / "llms.txt"
@@ -158,6 +174,8 @@ if not mp.exists():
     err(".claude-plugin/marketplace.json: missing")
 else:
     m = json.loads(mp.read_text(encoding="utf-8"))
+    if not isinstance(m.get("renames"), dict):
+        err(".claude-plugin/marketplace.json: 'renames' must be a mapping (possibly empty)")
     listed = {pl.get("name"): pl for pl in m.get("plugins", [])}
     for name in packs:
         pl = listed.get(name)
@@ -169,9 +187,19 @@ else:
         if name not in packs:
             err(f"marketplace.json: plugin {name!r} has no pack directory")
 
-# 6. OKF bundle, if present.
+# 6. OKF bundle, if present. Locators are URLs under the catalog's base_url; each must name a
+#    file in this archive whose sha256 is the concept's procedure_hash, and no link may leave okf/.
 okf = root / "okf"
 okf_count = 0
+base = str(manifest.get("base_url", "")).rstrip("/")
+
+
+def located(url: str):
+    if not base or not url.startswith(base + "/"):
+        return None
+    return root / url[len(base) + 1:]
+
+
 if okf.is_dir():
     for md in sorted(okf.rglob("*.md")):
         okf_count += 1
@@ -182,11 +210,24 @@ if okf.is_dir():
             continue
         if md.name not in OKF_RESERVED and not (isinstance(fm.get("type"), str) and fm["type"].strip()):
             err(f"{where}: OKF concept needs a non-empty 'type'")
+        if fm.get("type") == "Attested Computation":
+            comp = located(str(fm.get("computation", "")))
+            if comp is None or not comp.is_file():
+                err(f"{where}: computation {fm.get('computation')!r} is not a URL under {base or '<base_url>'} naming a file in this catalog")
+            elif "sha256:" + hashlib.sha256(comp.read_bytes()).hexdigest() != fm.get("procedure_hash"):
+                err(f"{where}: procedure_hash does not match the file computation locates")
+            att = located(str((fm.get("attester") or {}).get("resource", "")))
+            if att is None or not att.is_file():
+                err(f"{where}: attester.resource must be a URL under {base or '<base_url>'} naming a file in this catalog")
         for target in LINK_RE.findall(body):
             if "://" in target:
+                if target.startswith(base + "/") and located(target) is not None and not located(target).exists():
+                    err(f"{where}: link {target!r} names nothing in this catalog")
                 continue
-            resolved = (okf / target.lstrip("/")) if target.startswith("/") else (md.parent / target)
-            if not resolved.resolve().exists():
+            resolved = ((okf / target.lstrip("/")) if target.startswith("/") else (md.parent / target)).resolve()
+            if okf.resolve() not in resolved.parents:
+                err(f"{where}: link {target!r} leaves the OKF bundle; use a canonical URL")
+            elif not resolved.exists():
                 err(f"{where}: link {target!r} does not resolve")
 
 for w in warnings:

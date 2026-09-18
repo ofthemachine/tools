@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image=100hellos/java:latest --mode=wordalytica
+#!/usr/bin/env -S fragletc --image=100hellos/java@sha256:2b8b7b5817381f6d9460e2b4a124ad5f0ca01d668d4db084690a45939831b909 --mode=wordalytica
 #: d=Filter possible 5-letter Wordle answers given one or more guess+feedback rounds, using 100hellos/java's real wordalytica fluent WordSet API and word list (not a reimplementation). clues is "guess:result|guess:result|...", each result a 5-char G/Y/X string matching that guess letter-for-letter (G=green/correct spot, Y=yellow/wrong spot, X=gray/absent), e.g. "crane:GYXXX|mount:XXGXY". Report the raw colors you see -- this tool does the Wordle-logic-to-predicate translation, not you.
 #: when=Use when the user is solving a Wordle and reports the colours from one or more guesses.
 #: network=none

@@ -3,7 +3,6 @@
 #: when=Use when the user wants the text of a PDF, Word, PowerPoint, Excel, ODT, RTF, or HTML file, or a document's page count.
 #: network=none
 #: stdin=none
-#: category=extraction
 #: param=document:required:file:d=Document mounted at /input/document; format sniffed from content
 #: param=pages:d=1-indexed subset like 1-5 or 2,4,7-9 (pages, slides, or sheets)
 #: param=format:d=Force a format instead of sniffing: pdf, docx, pptx, xlsx, odt, rtf, html, text

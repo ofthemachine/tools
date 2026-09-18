@@ -1,0 +1,44 @@
+name: pages
+
+# tools.ofthemachine.com is a projection of the catalog. Every content-producing step is a
+# fraglet run by `make site`: fragletc lint -> meta/compile-catalog.py -> meta/validate-catalog.py
+# -> meta/site.py, each in an image pulled by digest. The site root is the catalog root, so
+# llms.txt, every SKILL.md and every tool file are served at the same paths as in the repo.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
+      - name: Install fragletc
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: fragletc version
+      - run: make site
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        id: deployment

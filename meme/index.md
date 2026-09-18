@@ -1,10 +1,10 @@
 ---
 type: Category
-title: Memes
+title: Meme
 description: Meme discovery and rendering with meme-cli.
 tags: [media]
 ---
 
-# Memes
+# Meme
 
 Meme discovery and rendering with meme-cli.

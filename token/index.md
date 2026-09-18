@@ -1,10 +1,10 @@
 ---
 type: Category
-title: Tokens
-description: Count and chunk text by LLM token budget (tiktoken).
+title: Token
+description: Count and chunk text by LLM token budget (OpenAI tiktoken encodings).
 tags: [engineering]
 ---
 
-# Tokens
+# Token
 
-Count and chunk text by LLM token budget (tiktoken).
+Count and chunk text by LLM token budget (OpenAI tiktoken encodings).

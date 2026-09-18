@@ -1,10 +1,10 @@
 ---
 type: Category
-title: Images
+title: Image
 description: Resize, crop, convert, compress, and diff raster images.
 tags: [media]
 ---
 
-# Images
+# Image
 
 Resize, crop, convert, compress, and diff raster images.

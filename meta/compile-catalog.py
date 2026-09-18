@@ -4,6 +4,7 @@
 #: network=none
 #: stdin=none
 #: param=archive:required:file:d=tar/tar.gz of the catalog source: index.md at the top level plus one directory per pack (<pack>/index.md and the pack's tool files)
+#: param=host:default=tools.ofthemachine.com:d=Canonical host (served over https) where the catalog is published; OKF concepts locate computations by URL there, paired with procedure_hash
 #: output=catalog.tar.gz
 """
 One parse, N renders.
@@ -27,6 +28,7 @@ else, so the whole catalog is reproducible from the tarball alone.
 """
 
 import datetime
+import gzip
 import hashlib
 import json
 import os
@@ -45,6 +47,13 @@ RESULT = Path("/output/catalog.tar.gz")
 INDEX = "index.md"
 OKF_DIR = "okf"
 ATTESTER = ("meta", "attest-receipt.py")
+# The header lines the catalog reads. fragletc ignores what it does not know, so the catalog
+# must be the one to refuse a private vocabulary (a '#: category=' nobody consumes).
+HEADER_KEYS = {"d", "description", "when", "network", "stdin", "param", "output"}
+# The fields of a fraglet-receipt/2, in the order fragletc writes them (pkg/receipt in
+# ofthemachine/fraglet). OKF's executor.receipt is the shape of the receipt, so it lists them all.
+RECEIPT_FIELDS = ["schema", "fragletc", "procedure", "procedure_hash", "image", "image_digest", "network", "stdin_mode",
+                  "params", "inputs", "argv", "env", "memo_key", "started", "finished", "exit_code", "stdout", "outputs"]
 MARKETPLACE_NAME = "ofthemachine-tools"
 MAX_DESCRIPTION = 1024
 
@@ -83,12 +92,17 @@ def parse_tool(path: Path, pack: str) -> Dict[str, Any]:
     if not image_match:
         fail(f"{pack}/{path.name}: the shebang must pin an image with --image; every tool runs under fragletc")
     image = image_match.group(1)
+    if "@sha256:" not in image:
+        fail(f"{pack}/{path.name}: --image must pin a digest (…@sha256:…), not a tag; a tag makes procedure_hash name a script but not what ran")
 
     ann: Dict[str, List[str]] = {}
     for line in lines:
         if line.startswith("#:") and "=" in line[2:]:
             key, val = line[2:].strip().split("=", 1)
-            ann.setdefault(key.strip(), []).append(val.strip())
+            key = key.strip()
+            if key not in HEADER_KEYS:
+                fail(f"{pack}/{path.name}: unknown header '#: {key}='; the catalog reads only {sorted(HEADER_KEYS)}")
+            ann.setdefault(key, []).append(val.strip())
 
     params = []
     for decl in ann.get("param", []):
@@ -190,6 +204,22 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def write_tarball(path: Path, entries: List[Path], arcroot: Path) -> None:
+    """A reproducible tar.gz: members named relative to arcroot, modes kept, owner and every
+    timestamp fixed (SOURCE_DATE_EPOCH, else 0), so the same catalog always yields the same bytes."""
+    epoch = int(os.environ.get("SOURCE_DATE_EPOCH", "0"))
+
+    def anon(info: tarfile.TarInfo) -> tarfile.TarInfo:
+        info.uid = info.gid = 0
+        info.uname = info.gname = ""
+        info.mtime = epoch
+        return info
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.GzipFile(path, "wb", mtime=0) as gz, tarfile.open(fileobj=gz, mode="w") as tar:
+        for entry in sorted(entries):
+            tar.add(entry, arcname=str(entry.relative_to(arcroot)), filter=anon)
+
+
 def param_line(p: Dict[str, Any]) -> str:
     req = "required" if p["required"] else (f"optional, default `{p['default']}`" if p["default"] is not None else "optional")
     line = f"- `{p['name']}` ({p['type']}, {req})"
@@ -214,7 +244,7 @@ def usage(tool: Dict[str, Any]) -> str:
         else:
             flags.append(f'[-p {p["name"]}="<{p["name"]}>"]')
     out = f" --output {tool['outputs'][0]}" if tool["outputs"] else ""
-    return f"<skill-dir>/{tool['file']} {' '.join(flags)}{out}".rstrip()
+    return f"{tool['file']} {' '.join(flags)}{out}".rstrip()
 
 
 # ----------------------------------------------------------------------------- skills
@@ -238,6 +268,7 @@ def render_skill(pack: Dict[str, Any]) -> str:
         "name": pack["name"],
         "description": pack_description(pack),
         "compatibility": f"{COMPAT_BASE} {COMPAT_NETWORK if network else COMPAT_HERMETIC}",
+        **({"license": pack["_license"]} if pack.get("_license") else {}),
         "metadata": {
             "tags": ", ".join(pack["tags"]),
             "tools": ", ".join(t["file"] for t in pack["tools"]),
@@ -259,7 +290,7 @@ def render_skill(pack: Dict[str, Any]) -> str:
 {t['when']}
 
 ```sh
-{usage(t)}
+<skill-dir>/{usage(t)}
 ```
 
 Parameters:
@@ -275,13 +306,13 @@ Runs in `{t['image']}`; {reach}.
 
 {pack['description']}
 
-Every tool below is one executable file beside this `SKILL.md`. Run it directly — `fragletc` with Docker is the only host requirement; the image, parameters, outputs and network reach are declared in the file itself. Before running a tool, print its contract:
+Every tool below is one executable file beside this `SKILL.md`. Run it directly. Two host requirements: [`fragletc`](https://github.com/ofthemachine/fraglet) (`curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh`) and Docker; the image, parameters, outputs and network reach are declared in the file itself. Before running a tool, print its contract:
 
 ```sh
 <skill-dir>/{first} --fraglet-help
 ```
 
-Parameters are passed as `-p name=value` (a `file` parameter takes a host path); declared outputs are copied out with `--output`. Add `--receipt run.json` (or set `FRAGLETC_RECEIPT_DIR`) to record the run: the receipt carries the tool's `procedure_hash`, image digest, parameters, and every input and output by content hash, and `meta/attest-receipt.py` can verify it later without re-running anything.
+Parameters are passed as `-p name=value` (a `file` parameter takes a host path); declared outputs are copied out with `--output <name>[=<host path>]`. A missing required parameter fails host-side with exit 2 before any container starts; otherwise the tool's own exit code is the run's. A declared output not named with `--output` is produced and discarded (a stderr note says what you could have copied). Add `--receipt run.json` (or set `FRAGLETC_RECEIPT_DIR`) to record the run: the receipt carries the tool's `procedure_hash`, image digest, parameters, and every input and output by content hash, and `meta/attest-receipt.py` can verify it later without re-running anything.
 
 ## Tools
 
@@ -296,6 +327,7 @@ def render_plugin(pack: Dict[str, Any], version: str) -> Dict[str, Any]:
         "description": pack["description"],
         "author": {"name": "ofthemachine"},
         "keywords": pack["tags"] + [t["stem"] for t in pack["tools"]],
+        **({"license": pack["_license"]} if pack.get("_license") else {}),
         "skills": ["./"],
     }
 
@@ -306,6 +338,8 @@ def render_marketplace(packs: List[Dict[str, Any]], catalog: Dict[str, Any], ver
         "owner": {"name": "ofthemachine"},
         "version": version,
         "description": catalog["description"],
+        **({"license": catalog["license"]} if catalog.get("license") else {}),
+        "renames": {r["from"]: r["to"] for r in catalog["renames"] if "/" not in r["from"]},
         "plugins": [
             {
                 "name": p["name"],
@@ -313,6 +347,7 @@ def render_marketplace(packs: List[Dict[str, Any]], catalog: Dict[str, Any], ver
                 "description": p["description"],
                 "version": version,
                 "tags": p["tags"],
+                **({"license": catalog["license"]} if catalog.get("license") else {}),
                 "skills": ["./"],
             }
             for p in packs
@@ -326,7 +361,7 @@ def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any]) -> str:
     lines = [
         f"# {catalog['title']}",
         "",
-        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (Docker is the only host requirement); `<tool> --fraglet-help` prints its contract, `--receipt` records a run.",
+        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (https://github.com/ofthemachine/fraglet; install with `curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh`) and Docker; `<tool> --fraglet-help` prints its contract, `--receipt` records a run. The whole catalog is also published as catalog.tar.gz beside this file.",
         "",
         "## Packs",
         "",
@@ -337,6 +372,7 @@ def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any]) -> str:
         "## Optional",
         "",
         "- [llms-full.txt](llms-full.txt): every pack's SKILL.md, concatenated",
+        "- <pack>.tar.gz beside each pack: the pack as one file, `curl -fsSL …/<pack>.tar.gz | tar xz -C <skills dir>` installs it",
         "- [manifest.json](manifest.json): every tool's contract and procedure_hash, as JSON",
         "- [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json): the packs as a Claude Code plugin marketplace",
         f"- [{OKF_DIR}/{INDEX}]({OKF_DIR}/{INDEX}): the same catalog as an Open Knowledge Format bundle",
@@ -356,19 +392,24 @@ def write_okf_index(path: Path, fm: Dict[str, Any], heading: str, intro: str, en
     write(path, f"---\n{okf_frontmatter(fm)}---\n\n" + "\n".join(lines) + "\n")
 
 
-def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str]) -> str:
-    """An 'Attested Computation' concept at okf/<pack>/<stem>.md; every link is relative to it."""
+def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str], base: str, license_: str = "") -> str:
+    """An 'Attested Computation' concept at okf/<pack>/<stem>.md.
+
+    Locators are canonical URLs, never paths out of the bundle: the OKF tree must stay separate
+    from the skills tree (each spec forbids the other's frontmatter), so nothing in it may point
+    across with '../'. A URL says where; procedure_hash says what it must hash to -- the same
+    pairing a receipt records. Links between concepts stay relative because they stay inside."""
     hermetic = t["network"] == "none"
-    script = f"../../{t['path']}"
-    skill = f"../../{t['pack']}/SKILL.md"
-    attester = f"../../{'/'.join(ATTESTER)}"
+    script = f"{base}/{t['path']}"
+    skill = f"{base}/{t['pack']}/SKILL.md"
+    attester = f"{base}/{'/'.join(ATTESTER)}"
     fm: Dict[str, Any] = {
         "type": "Attested Computation",
         "title": t["stem"],
+        "identifier": t["path"].rsplit(".", 1)[0],
         "description": t["description"],
-        "resource": script,
-        "tags": tags + [t["pack"], "hermetic" if hermetic else "environmental"],
-        "status": "stable",
+        "pack": t["pack"],
+        "tags": list(tags),
         "runtime": "fragletc",
         "image": t["image"],
         "network": t["network"],
@@ -377,13 +418,14 @@ def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str
         "procedure_hash": t["procedure_hash"],
         "parameters": [
             {"name": p["name"], "type": p["type"], "required": bool(p["required"]),
-             **({"default": p["default"]} if p.get("default") is not None else {})}
+             **({"default": p["default"]} if p.get("default") is not None else {}),
+             **({"description": p["description"]} if p.get("description") else {})}
             for p in t["params"]
         ],
         "computation": script,
         "executor": {
-            "resource": "fragletc",
-            "receipt": ["procedure_hash", "image", "image_digest", "params", "inputs", "outputs", "exit_code", "memo_key"],
+            "resource": "https://github.com/ofthemachine/fraglet",
+            "receipt": RECEIPT_FIELDS,
             "format": "fraglet-receipt/2 (fragletc --receipt <path>, or FRAGLETC_RECEIPT_DIR)",
         },
         "attester": {
@@ -395,6 +437,8 @@ def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str
     }
     if t["outputs"]:
         fm["outputs"] = list(t["outputs"])
+    if license_:
+        fm["license"] = license_
 
     params_md = "\n".join(param_line(p) for p in t["params"]) or "- none"
     if stdin_line(t["stdin"]):
@@ -421,14 +465,9 @@ def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str
 ## Outputs
 {outputs_md}
 
-# Computation
+# Execution
 
-[`{t['path']}`]({script}) runs under `fragletc` in `{t['image']}` (network: {t['network']}).
-Its identity is `procedure_hash` = sha256 of that file, shebang included — the same value `fragletc --receipt` records.
-
-```sh
-{t['path']} <params> --receipt run.json
-```
+The computation is [`{t['path']}`]({script}) (frontmatter `computation`; in `catalog.tar.gz` the same file sits at `{t['path']}` beside this bundle), run by `fragletc` in `{t['image']}` with network `{t['network']}`. Its identity is `procedure_hash` = sha256 of that file, shebang included — the same value every receipt records. Parameters are passed as `-p name=value`; `--receipt run.json` (or `FRAGLETC_RECEIPT_DIR`) writes the receipt, a `fraglet-receipt/2` JSON document with the fields listed under `executor.receipt`.
 
 # Attestation
 
@@ -462,6 +501,7 @@ def unpack(archive: str) -> Path:
 
 
 def main() -> None:
+    base = "https://" + os.environ["HOST"].strip().strip("/")
     src = unpack(os.environ["ARCHIVE"])
     if not (src / INDEX).exists():
         fail(f"the archive has no top-level {INDEX} (the Catalog concept with the tag vocabulary)")
@@ -470,9 +510,15 @@ def main() -> None:
     if not isinstance(vocabulary, dict) or not vocabulary:
         fail(f"{INDEX}: 'tags' must be a mapping of tag -> one-line description (the closed vocabulary)")
     version = str(catalog_fm.get("version") or "0.0.0")
-    catalog = {"title": str(catalog_fm.get("title") or "tools"), "description": str(catalog_fm.get("description") or "").strip()}
+    renames = catalog_fm.get("renames") or []
+    if not isinstance(renames, list) or any(not isinstance(r, dict) or set(r) < {"from", "to", "since"} for r in renames):
+        fail(f"{INDEX}: 'renames' must be a list of {{from, to, since}}")
+    catalog = {"title": str(catalog_fm.get("title") or "tools"), "description": str(catalog_fm.get("description") or "").strip(),
+               "license": str(catalog_fm.get("license") or "").strip(), "renames": renames}
 
     packs = discover_packs(src, {str(k): str(v) for k, v in vocabulary.items()})
+    for p in packs:
+        p["_license"] = catalog["license"]
     generated = generated_stamp()
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -487,6 +533,8 @@ def main() -> None:
         write(pack_dir / "SKILL.md", skill)
         skills_text.append(skill)
         write(pack_dir / ".claude-plugin" / "plugin.json", json.dumps(render_plugin(p, version), indent=2) + "\n")
+        # The pack as one file: `curl … <pack>.tar.gz | tar xz -C <skills dir>` installs it anywhere.
+        write_tarball(OUT / f"{p['name']}.tar.gz", [pack_dir], OUT)
     write(OUT / ".claude-plugin" / "marketplace.json", json.dumps(render_marketplace(packs, catalog, version), indent=2) + "\n")
 
     # llms.txt: packs -> SKILL.md -> tool.
@@ -497,7 +545,7 @@ def main() -> None:
     okf = OUT / OKF_DIR
     for p in packs:
         for t in p["tools"]:
-            write(okf / p["name"] / f"{t['stem']}.md", okf_computation(t, p["tags"], generated))
+            write(okf / p["name"] / f"{t['stem']}.md", okf_computation(t, p["tags"], generated, base, catalog.get("license", "")))
         write_okf_index(
             okf / p["name"] / INDEX,
             {"type": "Category", "title": p["title"], "description": p["description"], "tags": p["tags"], "generated": generated},
@@ -509,25 +557,28 @@ def main() -> None:
         {"type": "Catalog", "title": catalog["title"], "description": catalog["description"], "version": version,
          "tags": vocabulary, "generated": generated},
         catalog["title"],
-        "Every pack as a Category, every tool as an Attested Computation.",
+        f"Every pack as a Category, every tool as an Attested Computation. Computations and the attester are located by canonical URL under {base}/ and pinned by `procedure_hash`; in `catalog.tar.gz` the same files sit one level above this bundle at the URL's path.",
         [(f"{p['name']}/{INDEX}", p["title"], f"{len(p['tools'])} tools — {p['description']}") for p in packs],
     )
 
     # manifest.json: the structured view.
     manifest = {
+        "base_url": base,
+        "title": catalog["title"],
+        "description": catalog["description"],
+        **({"license": catalog["license"]} if catalog["license"] else {}),
         "version": version,
+        "renames": renames,
         "generated": generated,
         "tags": vocabulary,
         "packs": [{k: p[k] for k in ("name", "title", "description", "tags")} | {"tools": [t["stem"] for t in p["tools"]]} for p in packs],
-        "tools": [{k: v for k, v in t.items() if not k.startswith("_")} for p in packs for t in p["tools"]],
+        "tools": [{k: v for k, v in t.items() if not k.startswith("_")} | {"id": t["path"].rsplit(".", 1)[0], "url": f"{base}/{t['path']}", "usage": usage(t)}
+                  for p in packs for t in p["tools"]],
     }
     write(OUT / "manifest.json", json.dumps(manifest, indent=2) + "\n")
 
     # The archive is the catalog root: unpack it anywhere and llms.txt sits at the top.
-    RESULT.parent.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(RESULT, "w:gz") as tar:
-        for entry in sorted(OUT.iterdir()):
-            tar.add(entry, arcname=entry.name)
+    write_tarball(RESULT, list(OUT.iterdir()), OUT)
     n_tools = sum(len(p["tools"]) for p in packs)
     print(f"catalog v{version}: {len(packs)} packs, {n_tools} tools -> skills, plugins, llms.txt, manifest.json, {OKF_DIR}/")
 

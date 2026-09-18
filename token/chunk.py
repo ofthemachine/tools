@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=Split text into token-budgeted chunks using OpenAI tiktoken encodings, preferring paragraph boundaries and hard-splitting only paragraphs that exceed the budget on their own. Each chunk is introduced by a "[chunk i/n tokens=k]" marker line, and overlap carries that many tokens of tail context into the next chunk so meaning is not severed mid-thought. Use when text is too large for a single context window, or to prepare passages for embedding. Companion to token-counter, which measures the problem this solves.
+#: d=Split text into token-budgeted chunks using OpenAI tiktoken encodings, preferring paragraph boundaries and hard-splitting only paragraphs that exceed the budget on their own. Each chunk is introduced by a "[chunk i/n tokens=k]" marker line, and overlap carries that many tokens of tail context into the next chunk so meaning is not severed mid-thought. Companion to counter, which measures what this splits.
 #: when=Use when text is too large for one prompt and must be split into token-budgeted pieces that respect paragraph boundaries.
 #: network=required
 #: stdin=buffer

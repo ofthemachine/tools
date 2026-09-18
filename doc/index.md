@@ -1,10 +1,10 @@
 ---
 type: Category
-title: Documents
+title: Doc
 description: Render Markdown, bundles, and LaTeX to PDF; extract text from PDF and Office files.
 tags: [documents]
 ---
 
-# Documents
+# Doc
 
 Render Markdown, bundles, and LaTeX to PDF; extract text from PDF and Office files.

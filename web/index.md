@@ -2,7 +2,7 @@
 type: Category
 title: Web
 description: Search, readable extraction, metadata, screenshots, and print-to-PDF for any URL.
-tags: [internet]
+tags: [internet, documents]
 ---
 
 # Web

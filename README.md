@@ -1,6 +1,6 @@
 # tools
 
-A catalog of **level-0 tools** for AI agents: single-file [fraglets](https://github.com/ofthemachine/fraglet) — `#!/usr/bin/env -S fragletc --image=…` scripts that run in pinned containers on demand — organised into **packs** by subject and published as one [Agent Skill](https://agentskills.io) per pack. No local toolchains or language runtimes are ever required: **Docker** is the only host runtime dependency, and `fragletc` the only host binary.
+A catalog of **level-0 tools** for AI agents: single-file [fraglets](https://github.com/ofthemachine/fraglet) — `#!/usr/bin/env -S fragletc --image=…` scripts that run in pinned containers on demand — organised into **packs** by subject and published as one [Agent Skill](https://agentskills.io) per pack. A tool can be written in any language that has a fraglet-enabled container: the 90+ [100hellos](https://github.com/ofthemachine/100hellos) language images or the purpose-built [ofthemachine](https://github.com/ofthemachine/containers) ones (python3, headless-browser, latex, meme, home-automation, 3d-printing, …). No local toolchains or language runtimes are ever required: **Docker** is the only host runtime dependency, and `fragletc` the only host binary.
 
 Nothing about a tool lives outside its file. Everything else in this repository — the skills, the `llms.txt`, the Claude Code plugins, the Open Knowledge Format bundle — is compiled from the tools' own headers.
 
@@ -21,7 +21,7 @@ Then any tool runs from the repository root, no build needed:
 ./web/readable-markdown.py -p url="https://example.com" --output example.md
 ./token/counter.py -p text="The quick brown fox jumps over the lazy dog."
 ./meme/n-line.sh -p template=drake -p lines="Bloated context|Polyglot symbol outline" --output meme.png
-./words/wordle-solve.java -p clues="crane:..y.. spoil:....."
+./words/wordle-solve.java -p clues="crane:XYXXG|mould:XXXXX"
 ./math/is-prime.py -p n=7 --receipt run.json        # a receipt for the run, attestable later
 ./web/search.py --fraglet-help                      # any tool prints its own contract
 ```
@@ -39,7 +39,9 @@ tools/                        github.com/ofthemachine/tools  ==  tools.ofthemach
   meta/compile-catalog.py     the build, itself a tool: src.tar.gz in, catalog.tar.gz out
   meta/validate-catalog.py    the validator, itself a tool: catalog.tar.gz in, verdict out
   meta/attest-receipt.py      attests a fragletc receipt against the tool that ran
-  catalog/                    build output (gitignored) -- see Projections
+  meta/receipt-ledger.py      folds receipts into a ledger
+  meta/site.py                the website, itself a tool: catalog.tar.gz in, site.tar.gz out
+  catalog/  site/             build outputs (gitignored) -- see Projections
 ```
 
 A **pack** is any root directory with an `index.md` and at least one shebang file. That is the whole rule; the build never needs a list. Today's packs:
@@ -48,24 +50,24 @@ A **pack** is any root directory with an `index.md` and at least one shebang fil
 |---|---|---|
 | `astro` | moon-phase, sun-times (computed, hermetic) | world |
 | `code` | symbol-outline (Universal Ctags, 140+ languages) | engineering |
-| `data` | jq-slice | engineering |
+| `data` | jq-slice | engineering, computation |
 | `diagram` | graphviz (dot, neato, fdp, circo, twopi, sfdp) | media |
 | `doc` | markdown-to-pdf, markdowns-to-pdf, bundle-to-pdf, latex-to-pdf, extract-text | documents |
 | `image` | transform (Pillow), diff | media |
 | `math` | is-prime, fibonacci | computation |
 | `meme` | explore, n-line (meme-cli) | media |
-| `meta` | compile-catalog, validate-catalog, attest-receipt, receipt-ledger | engineering |
+| `meta` | compile-catalog, validate-catalog, site, attest-receipt, receipt-ledger | engineering |
 | `net` | my-ip, geo-ip | internet |
 | `news` | world-headline(s), rss-headlines, archive-lookup | world |
 | `token` | counter, chunk (tiktoken) | engineering |
 | `trivia` | advice, cat-fact, random-joke, on-this-day | world |
 | `weather` | current (wttr.in), forecast (Open-Meteo) | world |
-| `web` | search, readable-markdown, url-metadata, screenshot, pdf-of-url | internet |
+| `web` | search, readable-markdown, url-metadata, screenshot, pdf-of-url | internet, documents |
 | `words` | palindrome, rot13, wordle-solve | computation |
 
 ### Taxonomy
 
-Two axes; a path segment is identity, a tag is grouping. A pack name is a **subject noun** — what its tools act on or produce — never a verb, runtime, or container. Tags come from the closed vocabulary in the root `index.md`, and the build refuses any other. The growth rules (when a pack splits, where a one-tool pack is allowed, what counts as a breaking rename, when tags become facets) are in `index.md` too; they are the contract for contributors, so they live with the vocabulary they govern.
+Two axes; a path segment is identity, a tag is grouping. A pack name is a **subject noun** — what its tools act on or produce — never a verb, runtime, or container. Tags are criteria from the closed vocabulary in the root `index.md` (a pack carries every tag whose criterion its tools meet), and the build refuses any other. The growth rules (when a pack splits, where a one-tool pack is allowed, what counts as a breaking rename, when tags become facets) are in `index.md` too; they are the contract for contributors, so they live with the vocabulary they govern.
 
 ### What this repository does not hold
 
@@ -81,9 +83,10 @@ Composite skills (prose that sequences tools with model judgement) and behaviora
 |---|---|---|
 | `<pack>/SKILL.md` + the tools | every Agent Skills harness | **the pack is the skill.** `name` is the pack; the body is a table of its tools — `d=`, `when=`, parameters, outputs, image, network reach — and the tools sit beside it byte-identical, so `web/search.py` is the same path in the repo, in the catalog, in `~/.claude/skills/web/`, and on the web |
 | `<pack>/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | Claude Code | one plugin per pack |
-| `llms.txt`, `llms-full.txt` | any agent with HTTP | [llmstxt.org](https://llmstxt.org): packs → `SKILL.md` → tool. Two fetches from nothing to a runnable, pinned, receipt-emitting tool |
+| `llms.txt`, `llms-full.txt` | any agent with HTTP | [llmstxt.org](https://llmstxt.org): packs → `SKILL.md` → tool. Two fetches from `llms.txt` to a runnable, pinned, receipt-emitting tool |
 | `manifest.json` | tooling | every tool's typed contract and `procedure_hash`; every pack's tags |
 | `okf/` | knowledge consumers | the same catalog as an [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle (below) |
+| `site/` (from `make site`) | humans, at [tools.ofthemachine.com](https://tools.ofthemachine.com) | the catalog served verbatim plus an HTML layer beside it: an explorer of every tool (search, tag and pack filters, grid/table, dark/light), a page per pack, a page per tool with its contract, provenance, a curl one-liner and its source. `meta/site.py`, catalog.tar.gz in, site.tar.gz out; relative links, so it also opens from `file://` |
 
 Why one skill per pack and not per tool: a harness loads every installed skill's name and description at startup (~100 tokens each), so a catalog of hundreds of tools as hundreds of skills spends tens of thousands of tokens before an agent reads the request. The pack description carries the tool names as keywords; the pack body carries each tool's trigger; `--fraglet-help` carries the contract. That is the spec's own metadata → instructions → resources ladder.
 
@@ -91,9 +94,9 @@ Why one skill per pack and not per tool: a harness loads every installed skill's
 
 | harness | path |
 |---|---|
-| Claude Code | `make link-skills` symlinks `catalog/<pack>` into `~/.claude/skills/<pack>`; or add `catalog/` as a plugin marketplace |
+| Claude Code | `make link-skills` symlinks every `catalog/<pack>` into `~/.claude/skills/<pack>`; or `make build && claude plugin marketplace add "$PWD/catalog" && claude plugin install web@ofthemachine-tools` |
 | any agentskills.io harness | copy or symlink `catalog/<pack>/` — self-contained by construction |
-| any agent over HTTP | read `llms.txt`, follow a pack to its `SKILL.md`, `curl -O` the tool |
+| any agent over HTTP | read `llms.txt`, follow a pack to its `SKILL.md`, `curl -O` the tool; or fetch `catalog.tar.gz` whole |
 | a composite skill | `manifest.json` → the tool's path and `procedure_hash`; vendor the file |
 
 ---
@@ -130,8 +133,12 @@ A fraglet *is* an attested computation, in OKF's sense: a sanctioned computation
 make build         # lint every pack, compile catalog.tar.gz, validate it, unpack into catalog/
 make lint          # fragletc lint --strict over every pack
 make validate      # re-validate an unpacked catalog/
+make site          # build, then render the website from the validated catalog.tar.gz into site/
+make serve         # site, then serve site/ with nginx on http://localhost:8080 (docker; PORT=n to change)
 make link-skills   # build, then symlink catalog/<pack> into ~/.claude/skills/<pack>
-make clean         # remove catalog/
+make clean         # remove catalog/, site/ and their archives
 ```
 
-`static-site/` is a frozen Gatsby explorer from before the pivot, kept until it is replaced by a `containers/static-site` reflex (generator baked into an image; `catalog.tar.gz` in, site out) driven by a one-file tool in `meta/`. It is not part of the build.
+## Publishing
+
+`.github/workflows/build.yml` runs `make build` on every push and pull request: that is the whole review of a tool. `.github/workflows/pages.yml` runs `make site` on `main` and deploys `site/` to GitHub Pages as tools.ofthemachine.com — so the published site is produced by the same fraglets, in the same images by digest, as a local build. The `CNAME` file inside the site comes from `meta/site.py`'s `host` parameter.

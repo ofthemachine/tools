@@ -11,14 +11,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
       - name: Install fragletc
         run: |
           curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: fragletc version
       - run: make build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: catalog
           path: catalog/

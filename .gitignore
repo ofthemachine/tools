@@ -1,6 +1,8 @@
 # Projections: everything under catalog/ is compiled from the packs by `make build`.
 catalog/
 catalog.tar.gz
+site/
+site.tar.gz
 src.tar.gz
 
 # Runtime outputs from running tools by hand
@@ -13,3 +15,4 @@ run.json
 *.swp
 *~
 __pycache__/
+previews/

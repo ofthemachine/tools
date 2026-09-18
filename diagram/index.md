@@ -1,10 +1,10 @@
 ---
 type: Category
-title: Diagrams
+title: Diagram
 description: Render Graphviz DOT with any layout engine.
 tags: [media]
 ---
 
-# Diagrams
+# Diagram
 
 Render Graphviz DOT with any layout engine.

@@ -21,9 +21,13 @@ Match the desired I/O shape and copy that script — shebang, header, body shape
 
 **Trigger (one line):** `#: when=Use when ...` — the situations an agent should reach for this tool, in the words a request would use. `d=` is what the tool does; `when=` is when to use it. Both land verbatim in the pack's `SKILL.md`, so they are the sentences an agent matches a request against.
 
-**Stdin (only if used):** stdin is not forwarded unless declared. `#: stdin=buffer` for a tool that accepts piped input (read to EOF and hashed into the receipt, so the memo key covers it); `#: stdin=stream` only for a genuinely interactive program — such runs get no memo key. Lint warns `stdin-undeclared` when a body mentions stdin without a declaration.
+**Stdin (always declare it):** `#: stdin=none` for a tool that never reads stdin (most of the catalog); `#: stdin=buffer` for piped input (read to EOF, hashed into the receipt so the memo key covers it); `#: stdin=stream` only for a genuinely interactive program — such runs get no memo key. Undeclared means `buffer`.
 
 **Network (one line):** `#: network=required` if the tool fetches or calls an API; `#: network=none` if it is pure computation. When `network=none` is declared, `fragletc` enforces isolation with `docker run --network none`.
+
+**Header vocabulary is closed:** the build reads the directives fragletc defines — `d=`, `when=`, `network=`, `stdin=`, `param=`, `output=` — and refuses any other `#:` key. New directives are a fragletc change first, never a catalog convention. `--image` must pin a digest (`@sha256:`); a tag is refused.
+
+**Form of `d=`:** a noun phrase naming the result for a tool that returns a value ("The Moon's phase on a given date…"), an imperative for a transformation ("Render one Markdown file to PDF…"). Say what distinguishes it from its siblings, naming them by `<pack>/<stem>`; when a sibling is renamed, grep for it.
 
 ## Authoring & Verification Protocol
 
@@ -95,23 +99,24 @@ Fix: `#: param=count:default=5:d=Number of headlines to print` and `count = int(
 
 ## When Parroting Is Not Enough
 
-Read the rest of this skill only when the sibling table has no matching row, or when a clone fails for contract reasons (mounts, outputs, defaults, hermeticity).
+Read the rest of this document only when the sibling table has no matching row, or when a clone fails for contract reasons (mounts, outputs, defaults, hermeticity).
 
 ### Core Constraints (Still Apply)
 
 - **Pin on creation, never churn:** pin the shebang to the latest digest that provides the needed libraries. Never cascade repins to working siblings.
 - **Zero runtime installs:** never `pip install` / `apk add` / `apt-get` in the script body. Missing libs → update the container in `ofthemachine/containers`.
-- **Any language:** shebang chooses the image (`ofthemachine/python3@sha256:...`, `ofthemachine/headless-browser@sha256:...`, `ofthemachine/base`, `100hellos/<lang>`, etc.).
+- **Any language:** the shebang chooses the image, and any fraglet-enabled container works -- the 90+ `100hellos/<lang>` images or the purpose-built `ofthemachine/<image>` ones (`python3`, `headless-browser`, `latex`, `meme`, `home-automation`, `3d-printing`, ...). `words/wordle-solve.java` runs on `100hellos/java`. Pin by digest.
 
 ### Directive Specification Format
 
 Declare metadata and contracts immediately below the shebang with `#: ` lines:
 
 ```python
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:b4744b4ebef294ada9222232c0000b7db576e898fc8119e5a3b631aece6f2155
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:<the digest of the sibling you cloned>
 #: d=One-sentence capability pitch describing what the tool computes or transforms.
 #: when=Use when the user asks for <the requests this answers>, or <the situation a workflow hits>.
 #: network=none
+#: stdin=none
 #: param=input_text:required:d=Raw text to transform
 #: param=mode:default=fast:description=fast or thorough
 #: param=source_file:required:file
@@ -121,7 +126,7 @@ Declare metadata and contracts immediately below the shebang with `#: ` lines:
 - `d=<description>` (tool-level, alone on its `#:` line): Concise capability summary. Avoid meta-phrasing like "this script".
 - `when=<trigger>` (tool-level, alone on its `#:` line): When an agent should use it, phrased as the requests it answers. Lint warns (`when-missing`) without it; the catalog build is strict.
 - `network=none` / `network=required`: Egress declaration. `network=none` → `fragletc` adds `--network none`.
-- `stdin=buffer` / `stdin=stream`: stdin stance; undeclared means not forwarded. `buffer` for piped input (hashed), `stream` for interactive (no memo key).
+- `stdin=none` / `stdin=buffer` / `stdin=stream`: stdin stance; undeclared means `buffer`. `none` asserts the tool never reads it, `buffer` for piped input (hashed), `stream` for interactive (no memo key).
 - `param=<alias>:required`: Host-side failure (exit 2) if `-p <alias>=...` is missing.
 - `param=<alias>:default=<value>`: Injected into the container env when `-p` is omitted. Explicit `-p` (including empty) wins. Also exempts `required`.
 - `param=<alias>:…:description=<prose>` or `:d=<prose>`: Per-param help text (must be last modifier; spaces OK). Surfaces in `--fraglet-help`.
