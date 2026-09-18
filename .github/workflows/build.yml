@@ -1,0 +1,24 @@
+name: build
+
+# The whole review of a tool PR: fragletc lint --strict, the compiler, the validator.
+# fragletc and Docker are the only host requirements; every image is pulled by digest.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fragletc
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: fragletc version
+      - run: make build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catalog
+          path: catalog/

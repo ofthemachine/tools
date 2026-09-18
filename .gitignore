@@ -1,0 +1,15 @@
+# Projections: everything under catalog/ is compiled from the packs by `make build`.
+catalog/
+catalog.tar.gz
+src.tar.gz
+
+# Runtime outputs from running tools by hand
+*.png
+*.pdf
+run.json
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+__pycache__/
