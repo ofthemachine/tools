@@ -30,7 +30,7 @@ export COPYFILE_DISABLE = 1
 
 build: lint
 	@rm -rf catalog $(SRC_TAR) $(CATALOG_TAR)
-	tar -czf $(SRC_TAR) index.md $(PACKS)
+	tar -czf $(SRC_TAR) index.md CONTRIBUTING.md $(PACKS)
 	./meta/compile-catalog.py -p archive=$(SRC_TAR) -p host=$(HOST) --output $(CATALOG_TAR) </dev/null
 	@rm -f $(SRC_TAR)
 	./meta/validate-catalog.py -p archive=$(CATALOG_TAR) -p strict=true </dev/null

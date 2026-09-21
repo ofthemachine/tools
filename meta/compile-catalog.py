@@ -3,7 +3,7 @@
 #: when=Use when the user asks to build, rebuild, or regenerate the tools catalog, or wants the skills, llms.txt, marketplace, or OKF views of a set of fraglet tools.
 #: network=none
 #: stdin=none
-#: param=archive:required:file:d=tar/tar.gz of the catalog source: index.md at the top level plus one directory per pack (<pack>/index.md and the pack's tool files)
+#: param=archive:required:file:d=tar/tar.gz of the catalog source: index.md at the top level (optionally CONTRIBUTING.md beside it, copied through verbatim) plus one directory per pack (<pack>/index.md and the pack's tool files)
 #: param=host:default=tools.ofthemachine.com:d=Canonical host (served over https) where the catalog is published; OKF concepts locate computations by URL there, paired with procedure_hash
 #: output=catalog.tar.gz
 """
@@ -21,6 +21,7 @@ else, so the whole catalog is reproducible from the tarball alone.
   <pack>/.claude-plugin/plugin.json, .claude-plugin/marketplace.json
                                a Claude Code plugin per pack
   llms.txt, llms-full.txt      llmstxt.org: packs -> SKILL.md -> tool, two fetches
+  CONTRIBUTING.md              the source's, verbatim, when present: how to author a tool
   manifest.json                the structured view (typed params, procedure_hash) for tooling
   okf/                         Open Knowledge Format v0.2: Catalog -> Category (pack) ->
                                Attested Computation (tool); kept apart from the skills tree because
@@ -45,6 +46,7 @@ import yaml
 OUT = Path(tempfile.mkdtemp(prefix="catalog-out-"))
 RESULT = Path("/output/catalog.tar.gz")
 INDEX = "index.md"
+CONTRIBUTING = "CONTRIBUTING.md"
 OKF_DIR = "okf"
 ATTESTER = ("meta", "attest-receipt.py")
 # The header lines the catalog reads. fragletc ignores what it does not know, so the catalog
@@ -60,6 +62,8 @@ MAX_DESCRIPTION = 1024
 COMPAT_BASE = "Requires fragletc and Docker."
 COMPAT_HERMETIC = "Hermetic: no network access."
 COMPAT_NETWORK = "Network access required."
+# The install one-liner as every generated file shows it; `&& fragletc version` is the check that it is on PATH.
+INSTALL = "curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh && fragletc version"
 
 
 def fail(msg: str) -> None:
@@ -306,7 +310,7 @@ Runs in `{t['image']}`; {reach}.
 
 {pack['description']}
 
-Every tool below is one executable file beside this `SKILL.md`. Run it directly. Two host requirements: [`fragletc`](https://github.com/ofthemachine/fraglet) (`curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh`) and Docker; the image, parameters, outputs and network reach are declared in the file itself. Before running a tool, print its contract:
+Every tool below is one executable file beside this `SKILL.md`, in the directory the commands below call `<skill-dir>`. Run it directly. Two host requirements: [`fragletc`](https://github.com/ofthemachine/fraglet) (`{INSTALL}`) and Docker; the image, parameters, outputs and network reach are declared in the file itself. Before running a tool, print its contract:
 
 ```sh
 <skill-dir>/{first} --fraglet-help
@@ -357,11 +361,21 @@ def render_marketplace(packs: List[Dict[str, Any]], catalog: Dict[str, Any], ver
 
 # ----------------------------------------------------------------------------- llms.txt
 
-def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any]) -> str:
+def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any], base: str, contributing: bool) -> str:
     lines = [
         f"# {catalog['title']}",
         "",
-        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (https://github.com/ofthemachine/fraglet; install with `curl -fsSL https://raw.githubusercontent.com/ofthemachine/fraglet/main/install.sh | sh`) and Docker; `<tool> --fraglet-help` prints its contract, `--receipt` records a run. The whole catalog is also published as catalog.tar.gz beside this file.",
+        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (https://github.com/ofthemachine/fraglet; install with `{INSTALL}`) and Docker; `<tool> --fraglet-help` prints its contract, `--receipt` records a run. The whole catalog is also published as catalog.tar.gz beside this file.",
+        "",
+        # Commands first: an agent runs what is runnable and guesses at what is elided, so the host is
+        # literal and the only variables are the two it must choose.
+        "## Install",
+        "",
+        "```sh",
+        INSTALL,
+        f"curl -fsSL {base}/<pack>.tar.gz | tar xz -C <skills dir>   # -> <skills dir>/<pack>/SKILL.md, wherever your harness loads skills from",
+        "sha256sum <skills dir>/<pack>/*   # each tool's must equal its procedure_hash in manifest.json",
+        "```",
         "",
         "## Packs",
         "",
@@ -372,8 +386,8 @@ def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any]) -> str:
         "## Optional",
         "",
         "- [llms-full.txt](llms-full.txt): every pack's SKILL.md, concatenated",
-        "- <pack>.tar.gz beside each pack: the pack as one file, `curl -fsSL …/<pack>.tar.gz | tar xz -C <skills dir>` installs it",
         "- [manifest.json](manifest.json): every tool's contract and procedure_hash, as JSON",
+        *(["- [CONTRIBUTING.md](CONTRIBUTING.md): how to write a new tool -- clone a sibling, header grammar, verification protocol"] if contributing else []),
         "- [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json): the packs as a Claude Code plugin marketplace",
         f"- [{OKF_DIR}/{INDEX}]({OKF_DIR}/{INDEX}): the same catalog as an Open Knowledge Format bundle",
         "",
@@ -537,8 +551,14 @@ def main() -> None:
         write_tarball(OUT / f"{p['name']}.tar.gz", [pack_dir], OUT)
     write(OUT / ".claude-plugin" / "marketplace.json", json.dumps(render_marketplace(packs, catalog, version), indent=2) + "\n")
 
-    # llms.txt: packs -> SKILL.md -> tool.
-    write(OUT / "llms.txt", render_llms(packs, catalog))
+    # CONTRIBUTING.md, when the source carries it, so an agent arriving at llms.txt can find how to
+    # author a tool; its sibling references (words/palindrome.py) resolve at the same paths here.
+    contributing = (src / CONTRIBUTING).exists()
+    if contributing:
+        shutil.copy2(src / CONTRIBUTING, OUT / CONTRIBUTING)
+
+    # llms.txt: install -> packs -> SKILL.md -> tool.
+    write(OUT / "llms.txt", render_llms(packs, catalog, base, contributing))
     write(OUT / "llms-full.txt", "\n\n".join(skills_text) + "\n")
 
     # OKF bundle.
