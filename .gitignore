@@ -16,3 +16,6 @@ run.json
 *~
 __pycache__/
 previews/
+
+# Local scratch: candidate tool ideas noted during sessions
+CANDIDATE_TOOLS.md
