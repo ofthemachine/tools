@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:40a0c59734ba13c96f04853336dd4356ebc3e5981e930ec3f3fa4a7c74ee507e
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=Look up whether archive.ph already has a snapshot of a URL -- GET /newest/<url> and report its Location header on a redirect. Lookup only: never submits a new snapshot, so it can't be used to force-archive something that isn't already there. Prints nothing (not an error) when no snapshot exists -- the caller falls back to the original link.
 #: when=Use when a link may be paywalled or gone and the user wants an existing archive.ph snapshot of it, without creating one.
 #: network=required

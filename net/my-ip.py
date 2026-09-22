@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:40a0c59734ba13c96f04853336dd4356ebc3e5981e930ec3f3fa4a7c74ee507e
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=The host's public IPv4/IPv6 address as the internet sees it, from ifconfig.me (no API key) -- what `curl ifconfig.me` prints, as a fraglet so a workflow can record where it ran. Prints the bare address and nothing else.
 #: when=Use when the user asks what their public IP is, or a workflow needs the address it is running from -- for example to locate itself with net/geo-ip.py.
 #: network=required

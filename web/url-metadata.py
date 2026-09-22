@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:40a0c59734ba13c96f04853336dd4356ebc3e5981e930ec3f3fa4a7c74ee507e
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=Fetch a URL and extract its <title> and Open Graph tags (og:title, og:description, og:image) -- stdlib html.parser only, no external service.
 #: when=Use when the user wants a page's title, description, or preview image, or a link needs a caption without fetching the whole article.
 #: network=required

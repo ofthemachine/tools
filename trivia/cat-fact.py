@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:40a0c59734ba13c96f04853336dd4356ebc3e5981e930ec3f3fa4a7c74ee507e
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=A random cat fact (catfact.ninja, no API key).
 #: when=Use when the user asks for a cat fact, or a caption or meme needs one.
 #: network=required

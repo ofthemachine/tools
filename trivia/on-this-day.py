@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:40a0c59734ba13c96f04853336dd4356ebc3e5981e930ec3f3fa4a7c74ee507e
+#!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=Notable events that happened on a month and day in history, from Wikipedia's "On this day" feed (Wikimedia API, no key). One "YEAR<TAB>text" line per event, most recent first, count-limited, so a briefing can pick the one that rhymes with today.
 #: when=Use when the user asks what happened on this day in history, or a newspaper, briefing, or caption wants an anniversary for a given date.
 #: network=required
