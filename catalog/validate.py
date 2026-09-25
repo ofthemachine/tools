@@ -45,7 +45,7 @@ except Exception as e:
     print(f"Error: cannot unpack archive: {e}", file=sys.stderr)
     sys.exit(2)
 
-# Tolerate one wrapping directory (tar czf catalog.tar.gz catalog).
+# Tolerate one wrapping directory (tar czf tools.tar.gz dist).
 entries = [p for p in root.iterdir() if not p.name.startswith(".")]
 if len(entries) == 1 and entries[0].is_dir() and not (root / "manifest.json").exists():
     root = entries[0]
@@ -174,8 +174,6 @@ if not mp.exists():
     err(".claude-plugin/marketplace.json: missing")
 else:
     m = json.loads(mp.read_text(encoding="utf-8"))
-    if not isinstance(m.get("renames"), dict):
-        err(".claude-plugin/marketplace.json: 'renames' must be a mapping (possibly empty)")
     listed = {pl.get("name"): pl for pl in m.get("plugins", [])}
     for name in packs:
         pl = listed.get(name)

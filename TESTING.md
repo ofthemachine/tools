@@ -30,7 +30,7 @@ Tests should be **runnable offline** (no dependency on external APIs except netw
 
 ### Pattern 1: Pure Computation Tools (network=none)
 
-**Examples:** `chart/plot.py`, `data/table-query.py`, `sheet/inspect.py`
+**Examples:** `chart/plot.py`, `data/sql.py`, `sheet/inspect.py`
 
 These are hermetic and deterministic. A test:
 1. Prepares fixture data (CSV, JSON, XLSX file)
@@ -67,7 +67,7 @@ These are hermetic and deterministic. A test:
 
 ### Pattern 2: Network-Required Tools (network=required)
 
-**Examples:** `net/registry-lookup.py`
+**Examples:** `package/metadata.py`
 
 These query live external APIs. Tests should:
 1. **Mock or stub the network calls** where possible (e.g., fixture JSON responses from PyPI)
@@ -110,7 +110,7 @@ These read host files. Tests:
 
 ### Pattern 4: Stdin Tools (stdin=buffer or stdin=stream)
 
-**Examples:** `chart/plot.py` (inline CSV via stdin), `data/table-query.py` (inline SQL data)
+**Examples:** `chart/plot.py` (inline CSV via stdin), `data/sql.py` (inline SQL data)
 
 These accept piped input. Tests:
 1. Pipe fixture data via stdin (or use `-p <text_param>` for inline)
@@ -229,7 +229,7 @@ jobs:
 
 The existing `make build` target already validates:
 - `fragletc lint --strict` on every tool
-- Catalog compilation (`meta/compile-catalog.py`)
+- Catalog compilation (`catalog/compile.py`)
 - Generated `SKILL.md` format and size limits
 
 This catches:
@@ -272,7 +272,7 @@ Before a tool PR merges:
 
 1. **No integration test harness yet** — each pack defines its own `tests/test_*.sh`. A unified runner would be useful.
 2. **No VCR-style cassette recording** — network tests will need manual fixture updates if APIs change.
-3. **No performance baselines** — tools like `data/table-query.py` on 100MB CSVs should be profiled.
+3. **No performance baselines** — tools like `data/sql.py` on 100MB CSVs should be profiled.
 4. **No fuzz testing** — malformed CSV, truncated JSON, corrupt PDFs aren't systematically tested.
 
 Defer these until the first 5 packs stabilize.

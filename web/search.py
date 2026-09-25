@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=Search the web through DuckDuckGo and print one "title<TAB>url<TAB>snippet" result per line, with no API key required. Set site to constrain results to a single domain, timelimit to d, w, m, or y for recency, and region for locale-weighted results. Pairs with readable-markdown to turn a query into full article text.
+#: d=Search the web through DuckDuckGo and print one "title<TAB>url<TAB>snippet" result per line, with no API key required. Set site to constrain results to a single domain, timelimit to d, w, m, or y for recency, and region for locale-weighted results. Pairs with page-to-markdown to turn a query into full article text.
 #: when=Use when the user wants web search results, recent news about a topic or place, or pages from a specific site, and no API key is available.
 #: network=required
 #: stdin=none

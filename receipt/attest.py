@@ -1,6 +1,6 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
 #: d=Attest a fragletc run receipt (fraglet-receipt/2) the way OKF's Attested Computation attester does -- deterministic, no re-execution -- and report VERDICT: ATTESTED or VERDICT: REJECTED with every reason. Checks that the computation that ran is the sanctioned script (procedure_hash equals sha256 of the computation file, or the expected hash), that the receipt is internally consistent (memo_key recomputes from its own procedure_hash, params, and inputs under fragletc's documented formula, so an edited params field fails), that any claimed params match, that the run succeeded, and that an artifact claimed to be an output of the run hashes to what the receipt recorded.
-#: when=Use when a result (a number, a phrase, an image) claims to have come from a tool run and you need to confirm the run was the sanctioned script with those parameters, or when checking the receipts bundled with a Daily Fraglet edition.
+#: when=Use when a result (a number, a phrase, an image) claims to have come from a tool run and you need to confirm the run was the sanctioned script with those parameters, or when checking the receipts bundled with a published document, image, or poem.
 #: network=none
 #: stdin=none
 #: param=receipt:required:file:d=The fragletc --receipt JSON to attest

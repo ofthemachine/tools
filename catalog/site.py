@@ -3,7 +3,7 @@
 #: when=Use when the user wants the browsable website for a tools catalog, or CI publishes tools.ofthemachine.com from a freshly built catalog.
 #: network=none
 #: stdin=none
-#: param=archive:required:file:d=catalog.tar.gz as meta/compile-catalog.py emits it (the site root is the catalog root)
+#: param=archive:required:file:d=tools.tar.gz as catalog/compile.py emits it (the site root is the catalog root)
 #: param=host:default=tools.ofthemachine.com:d=Canonical host (served over https), used in curl one-liners, canonical links, and the CNAME file
 #: output=site.tar.gz
 """
@@ -188,7 +188,7 @@ def layout(title: str, body: str, depth: int, catalog: Dict[str, Any], canonical
 <main><div class="container">
 {body}
 </div></main>
-<footer><div class="container">{e(catalog['title'])} v{e(catalog['version'])} · generated {e(catalog['generated']['at'])} by <code>meta/site.py</code> from <code>meta/compile-catalog.py</code> · <a href="{root}llms.txt">llms.txt</a> · <a href="{root}manifest.json">manifest.json</a> · <a href="{root}okf/index.md">OKF</a></div></footer>
+<footer><div class="container">{e(catalog['title'])} v{e(catalog['version'])} · generated {e(catalog['generated']['at'])} by <code>catalog/site.py</code> from <code>catalog/compile.py</code> · <a href="{root}llms.txt">llms.txt</a> · <a href="{root}manifest.json">manifest.json</a> · <a href="{root}okf/index.md">OKF</a></div></footer>
 </body>
 </html>
 """
@@ -256,7 +256,7 @@ def page_index(m: Dict[str, Any], packs: Dict[str, Dict[str, Any]], base: str) -
 <h1>{e(m['title'])}</h1>
 <p>{len(tools)} tools in {len(m['packs'])} packs. Each is one file that runs in a pinned container via <code>fragletc</code>; each pack is one Agent Skill. Agents start at <a href="llms.txt">llms.txt</a>.</p>
 <p class="hero-note">Written in any language with a fraglet-enabled container: the 90+ <a href="https://github.com/ofthemachine/100hellos" target="_blank" rel="noopener">100hellos</a> languages or the purpose-built <a href="https://github.com/ofthemachine/containers" target="_blank" rel="noopener">ofthemachine</a> images (python3, headless-browser, latex, meme, home-automation, 3d-printing…). Two host dependencies: <a href="https://github.com/ofthemachine/fraglet" target="_blank" rel="noopener">fragletc</a> and Docker.</p>
-<div class="actions"><a class="btn primary" href="#packs">Browse {len(m['packs'])} packs</a><a class="btn" href="llms.txt">I'm an agent → llms.txt</a><a class="btn" href="catalog.tar.gz">Download catalog.tar.gz</a></div>
+<div class="actions"><a class="btn primary" href="#packs">Browse {len(m['packs'])} packs</a><a class="btn" href="llms.txt">I'm an agent → llms.txt</a><a class="btn" href="tools.tar.gz">Download tools.tar.gz</a></div>
 </section>
 <p class="hero-note">Claude Code, from a clone: <code>make build &amp;&amp; claude plugin marketplace add "$PWD/catalog"</code>, then <code>claude plugin install &lt;pack&gt;@ofthemachine-tools</code>.</p>
 <nav id="packs" class="pills packs" aria-label="Packs"><span class="label">PACKS</span>{"".join(f'<a class="pill" href="{e(p["name"])}/index.html">{e(p["name"])} ({len(p["tools"])})</a>' for p in m["packs"])}</nav>
@@ -335,7 +335,7 @@ def page_tool(t: Dict[str, Any], p: Dict[str, Any], m: Dict[str, Any], base: str
 <dt>image</dt><dd class="mono">{e(t['image'])}</dd>
 <dt>reach</dt><dd>{reach}</dd>
 <dt>procedure_hash</dt><dd class="mono">{e(t['procedure_hash'])}</dd>
-<dt>receipt</dt><dd>add <code>--receipt run.json</code> to any run; <code>meta/attest-receipt.py</code> verifies it against this hash without re-running.</dd>
+<dt>receipt</dt><dd>add <code>--receipt run.json</code> to any run; <code>receipt/attest.py</code> verifies it against this hash without re-running.</dd>
 </dl>
 <h2>Source</h2>
 <details open><summary>{e(t['file'])} · {len(source.splitlines())} lines · sha256 {e(t['procedure_hash'][7:19])}…</summary>
@@ -370,7 +370,7 @@ def main() -> None:
     catalog = unpack(os.environ["ARCHIVE"], SRC)
     manifest_path = catalog / "manifest.json"
     if not manifest_path.exists():
-        raise SystemExit("the archive has no manifest.json; give this tool what meta/compile-catalog.py emits")
+        raise SystemExit("the archive has no manifest.json; give this tool what catalog/compile.py emits")
     m = json.loads(manifest_path.read_text(encoding="utf-8"))
     packs = {p["name"]: p for p in m["packs"]}
     by_pack: Dict[str, List[Dict[str, Any]]] = {}
@@ -382,7 +382,7 @@ def main() -> None:
     write(OUT / "assets" / "site.css", CSS.strip() + "\n")
     write(OUT / "assets" / "site.js", JS.strip() + "\n")
     write(OUT / "CNAME", host + "\n")
-    shutil.copy2(os.environ["ARCHIVE"], OUT / "catalog.tar.gz")  # the whole catalog, fetchable as one file
+    shutil.copy2(os.environ["ARCHIVE"], OUT / "tools.tar.gz")  # the whole catalog, fetchable as one file
     write(OUT / "index.html", page_index(m, packs, base))
     for p in m["packs"]:
         write(OUT / p["name"] / "index.html", page_pack(p, by_pack.get(p["name"], []), m, base))

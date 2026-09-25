@@ -1,10 +1,10 @@
 ---
 type: Category
 title: Meme
-description: Meme discovery and rendering with meme-cli.
+description: Find meme templates and caption them, with meme-cli.
 tags: [media]
 ---
 
 # Meme
 
-Meme discovery and rendering with meme-cli.
+Find meme templates and caption them, with meme-cli.

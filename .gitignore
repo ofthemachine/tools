@@ -1,6 +1,6 @@
-# Projections: everything under catalog/ is compiled from the packs by `make build`.
-catalog/
-catalog.tar.gz
+# Projections: everything under dist/ is compiled from the packs by `make build`.
+dist/
+tools.tar.gz
 site/
 site.tar.gz
 src.tar.gz
@@ -19,3 +19,6 @@ previews/
 
 # Local scratch: candidate tool ideas noted during sessions
 CANDIDATE_TOOLS.md
+
+# Local scratch: research notes, cloned sources, throwaway experiments
+tmp/

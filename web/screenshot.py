@@ -1,10 +1,10 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/headless-browser@sha256:f79c496c6737113c0f6e2d648474a67fb1a416fa34c22220d5714d0b7c6a6036
-#: d=Capture a full-page PNG screenshot of a webpage (headless Chromium via Playwright). Pass headers=<json object> to screenshot a page behind auth (e.g. headers={"Authorization":"Bearer <token>"}) -- a plain browser navigation can't set custom headers. settle_ms (default 2000) is an extra wait after page load, for pages whose real content only appears after their own async JS runs.
+#: d=Capture a full-page PNG screenshot of a webpage (headless Chromium via Playwright). Pass headers=<json object> to send extra request headers. settle_ms (default 2000) is an extra wait after page load, for pages whose real content only appears after their own async JS runs.
 #: when=Use when the user wants a picture of a rendered page, or a visual check of a URL rather than its text.
 #: network=required
 #: stdin=none
 #: param=url:required:d=Page URL to capture
-#: param=headers:d=JSON object of extra HTTP headers (e.g. Authorization)
+#: param=headers:d=JSON object of extra non-secret HTTP headers (e.g. Accept-Language); recorded in plaintext in receipts, so never credentials
 #: param=settle_ms:default=2000:description=Extra wait after page load for async JS content
 #: output=page.png
 import json

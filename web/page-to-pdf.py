@@ -1,10 +1,10 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/headless-browser@sha256:f79c496c6737113c0f6e2d648474a67fb1a416fa34c22220d5714d0b7c6a6036
-#: d=Render a webpage to a PDF (headless Chromium via Playwright) -- the print-to-PDF cousin of web/screenshot.py. Pass headers=<json object> to render a page behind auth, same as screenshot.py's own headers param.
+#: d=Render a webpage to a PDF (headless Chromium via Playwright) -- the print-to-PDF cousin of web/screenshot.py. Pass headers=<json object> to send extra request headers, as in web/screenshot.py.
 #: when=Use when the user wants a PDF of a web page as the browser would print it, including layout and images.
 #: network=required
 #: stdin=none
 #: param=url:required:d=Page URL to render
-#: param=headers:d=JSON object of extra HTTP headers (e.g. Authorization)
+#: param=headers:d=JSON object of extra non-secret HTTP headers (e.g. Accept-Language); recorded in plaintext in receipts, so never credentials
 #: output=page.pdf
 import json
 import os

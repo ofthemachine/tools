@@ -5,7 +5,7 @@
 #: stdin=none
 #: param=archive:required:file:d=tar/tar.gz of the catalog source: index.md at the top level (optionally CONTRIBUTING.md beside it, copied through verbatim) plus one directory per pack (<pack>/index.md and the pack's tool files)
 #: param=host:default=tools.ofthemachine.com:d=Canonical host (served over https) where the catalog is published; OKF concepts locate computations by URL there, paired with procedure_hash
-#: output=catalog.tar.gz
+#: output=tools.tar.gz
 """
 One parse, N renders.
 
@@ -44,14 +44,16 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 OUT = Path(tempfile.mkdtemp(prefix="catalog-out-"))
-RESULT = Path("/output/catalog.tar.gz")
+RESULT = Path("/output/tools.tar.gz")
 INDEX = "index.md"
 CONTRIBUTING = "CONTRIBUTING.md"
 OKF_DIR = "okf"
-ATTESTER = ("meta", "attest-receipt.py")
+# Pack names that would collide with what the catalog root publishes (<pack>.tar.gz, <pack>/).
+RESERVED = {"tools": "tools.tar.gz, the whole catalog", "okf": "okf/, the Open Knowledge Format bundle"}
+ATTESTER = ("receipt", "attest.py")
 # The header lines the catalog reads. fragletc ignores what it does not know, so the catalog
 # must be the one to refuse a private vocabulary (a '#: category=' nobody consumes).
-HEADER_KEYS = {"d", "description", "when", "network", "stdin", "param", "output"}
+HEADER_KEYS = {"d", "description", "when", "network", "stdin", "param", "output", "secret"}
 # The fields of a fraglet-receipt/2, in the order fragletc writes them (pkg/receipt in
 # ofthemachine/fraglet). OKF's executor.receipt is the shape of the receipt, so it lists them all.
 RECEIPT_FIELDS = ["schema", "fragletc", "procedure", "procedure_hash", "image", "image_digest", "network", "stdin_mode",
@@ -126,6 +128,14 @@ def parse_tool(path: Path, pack: str) -> Dict[str, Any]:
             "description": desc,
         })
 
+    # secret=NAME[:d=prose]: the caller's env var NAME, delivered to the tool as the file $NAME_FILE.
+    secrets = []
+    for decl in ann.get("secret", []):
+        name, _, desc = decl.partition(":d=")
+        if not desc:
+            name, _, desc = decl.partition(":description=")
+        secrets.append({"name": name.strip(), "description": desc.strip() or None})
+
     return {
         "pack": pack,
         "stem": path.stem,
@@ -137,6 +147,7 @@ def parse_tool(path: Path, pack: str) -> Dict[str, Any]:
         "network": ann.get("network", ["none"])[0],
         "stdin": ann.get("stdin", ["buffer"])[0],
         "params": params,
+        "secrets": secrets,
         "outputs": ann.get("output", []),
         "procedure_hash": procedure_hash(path),
         "_src": path,
@@ -151,6 +162,8 @@ def discover_packs(src: Path, vocabulary: Dict[str, str]) -> List[Dict[str, Any]
             continue  # not a pack; the compiler never guesses
         if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", d.name) or len(d.name) > 20:
             fail(f"{d.name}/: pack names are kebab-case, at most 20 characters")
+        if d.name in RESERVED:
+            fail(f"{d.name}/: '{d.name}' is reserved -- the catalog root already publishes {RESERVED[d.name]}")
         fm, body = read_frontmatter(index)
         for key in ("title", "description"):
             if not isinstance(fm.get(key), str) or not fm[key].strip():
@@ -200,7 +213,7 @@ def yaml_block(fm: Dict[str, Any]) -> str:
 def generated_stamp() -> Dict[str, str]:
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
     at = datetime.datetime.fromtimestamp(int(epoch), datetime.timezone.utc) if epoch else datetime.datetime.now(datetime.timezone.utc)
-    return {"by": "process:tools/meta/compile-catalog.py", "at": at.replace(microsecond=0).isoformat().replace("+00:00", "Z")}
+    return {"by": "process:tools/catalog/compile.py", "at": at.replace(microsecond=0).isoformat().replace("+00:00", "Z")}
 
 
 def write(path: Path, text: str) -> None:
@@ -236,6 +249,11 @@ def stdin_line(mode: str) -> Optional[str]:
     if mode == "stream":
         return "- stdin (interactive, streamed) — not hashed; such a run has no memo key"
     return None
+
+
+def secret_line(s: Dict[str, Any]) -> str:
+    line = f"- `{s['name']}` (secret, required) — read from the caller's environment, never passed with `-p`"
+    return line + (f"; {s['description']}" if s.get("description") else "")
 
 
 def usage(tool: Dict[str, Any]) -> str:
@@ -280,7 +298,7 @@ def render_skill(pack: Dict[str, Any]) -> str:
     }
     sections = []
     for t in pack["tools"]:
-        lines = [param_line(p) for p in t["params"]] or ["- none"]
+        lines = [param_line(p) for p in t["params"]] + [secret_line(s) for s in t["secrets"]] or ["- none"]
         if stdin_line(t["stdin"]):
             lines.append(stdin_line(t["stdin"]))
         outputs = "\n".join(f"- `{o}` — copy out with `--output {o}[=<host path>]`" for o in t["outputs"]) or "- stdout"
@@ -316,7 +334,7 @@ Every tool below is one executable file beside this `SKILL.md`, in the directory
 <skill-dir>/{first} --fraglet-help
 ```
 
-Parameters are passed as `-p name=value` (a `file` parameter takes a host path); declared outputs are copied out with `--output <name>[=<host path>]`. A missing required parameter fails host-side with exit 2 before any container starts; otherwise the tool's own exit code is the run's. A declared output not named with `--output` is produced and discarded (a stderr note says what you could have copied). Add `--receipt run.json` (or set `FRAGLETC_RECEIPT_DIR`) to record the run: the receipt carries the tool's `procedure_hash`, image digest, parameters, and every input and output by content hash, and `meta/attest-receipt.py` can verify it later without re-running anything.
+Parameters are passed as `-p name=value` (a `file` parameter takes a host path); declared outputs are copied out with `--output <name>[=<host path>]`. A missing required parameter fails host-side with exit 2 before any container starts; otherwise the tool's own exit code is the run's. A declared output not named with `--output` is produced and discarded (a stderr note says what you could have copied). Add `--receipt run.json` (or set `FRAGLETC_RECEIPT_DIR`) to record the run: the receipt carries the tool's `procedure_hash`, image digest, parameters, and every input and output by content hash, and `receipt/attest.py` can verify it later without re-running anything.
 
 ## Tools
 
@@ -343,7 +361,6 @@ def render_marketplace(packs: List[Dict[str, Any]], catalog: Dict[str, Any], ver
         "version": version,
         "description": catalog["description"],
         **({"license": catalog["license"]} if catalog.get("license") else {}),
-        "renames": {r["from"]: r["to"] for r in catalog["renames"] if "/" not in r["from"]},
         "plugins": [
             {
                 "name": p["name"],
@@ -365,7 +382,7 @@ def render_llms(packs: List[Dict[str, Any]], catalog: Dict[str, Any], base: str,
     lines = [
         f"# {catalog['title']}",
         "",
-        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (https://github.com/ofthemachine/fraglet; install with `{INSTALL}`) and Docker; `<tool> --fraglet-help` prints its contract, `--receipt` records a run. The whole catalog is also published as catalog.tar.gz beside this file.",
+        f"> {catalog['description']} Each pack below is one Agent Skill: a SKILL.md listing its tools, with the tools beside it. A tool is a single file that runs in a pinned container via fragletc (https://github.com/ofthemachine/fraglet; install with `{INSTALL}`) and Docker; `<tool> --fraglet-help` prints its contract, `--receipt` records a run. The whole catalog is also published as tools.tar.gz beside this file.",
         "",
         # Commands first: an agent runs what is runnable and guesses at what is elided, so the host is
         # literal and the only variables are the two it must choose.
@@ -449,12 +466,14 @@ def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str
         },
         "generated": generated,
     }
+    if t["secrets"]:
+        fm["secrets"] = [s["name"] for s in t["secrets"]]
     if t["outputs"]:
         fm["outputs"] = list(t["outputs"])
     if license_:
         fm["license"] = license_
 
-    params_md = "\n".join(param_line(p) for p in t["params"]) or "- none"
+    params_md = "\n".join([param_line(p) for p in t["params"]] + [secret_line(s) for s in t["secrets"]]) or "- none"
     if stdin_line(t["stdin"]):
         params_md += "\n" + stdin_line(t["stdin"])
     outputs_md = "\n".join(f"- `{o}` (declared file under /output)" for o in t["outputs"]) or "- stdout (the anonymous result)"
@@ -481,11 +500,11 @@ def okf_computation(t: Dict[str, Any], tags: List[str], generated: Dict[str, str
 
 # Execution
 
-The computation is [`{t['path']}`]({script}) (frontmatter `computation`; in `catalog.tar.gz` the same file sits at `{t['path']}` beside this bundle), run by `fragletc` in `{t['image']}` with network `{t['network']}`. Its identity is `procedure_hash` = sha256 of that file, shebang included — the same value every receipt records. Parameters are passed as `-p name=value`; `--receipt run.json` (or `FRAGLETC_RECEIPT_DIR`) writes the receipt, a `fraglet-receipt/2` JSON document with the fields listed under `executor.receipt`.
+The computation is [`{t['path']}`]({script}) (frontmatter `computation`; in `tools.tar.gz` the same file sits at `{t['path']}` beside this bundle), run by `fragletc` in `{t['image']}` with network `{t['network']}`. Its identity is `procedure_hash` = sha256 of that file, shebang included — the same value every receipt records. Parameters are passed as `-p name=value`; `--receipt run.json` (or `FRAGLETC_RECEIPT_DIR`) writes the receipt, a `fraglet-receipt/2` JSON document with the fields listed under `executor.receipt`.
 
 # Attestation
 
-A run's receipt is attested with [`meta/attest-receipt.py`]({attester}): the computation that ran is this script (`procedure_hash`), the receipt is internally consistent (`memo_key` recomputes from its own fields), the claimed parameters are the ones that ran, and an artifact claimed as an output hashes to what the receipt recorded. No re-execution: attestation is provenance fidelity, not reproduction.
+A run's receipt is attested with [`receipt/attest.py`]({attester}): the computation that ran is this script (`procedure_hash`), the receipt is internally consistent (`memo_key` recomputes from its own fields), the claimed parameters are the ones that ran, and an artifact claimed as an output hashes to what the receipt recorded. No re-execution: attestation is provenance fidelity, not reproduction.
 
 {reach}
 
@@ -524,11 +543,8 @@ def main() -> None:
     if not isinstance(vocabulary, dict) or not vocabulary:
         fail(f"{INDEX}: 'tags' must be a mapping of tag -> one-line description (the closed vocabulary)")
     version = str(catalog_fm.get("version") or "0.0.0")
-    renames = catalog_fm.get("renames") or []
-    if not isinstance(renames, list) or any(not isinstance(r, dict) or set(r) < {"from", "to", "since"} for r in renames):
-        fail(f"{INDEX}: 'renames' must be a list of {{from, to, since}}")
     catalog = {"title": str(catalog_fm.get("title") or "tools"), "description": str(catalog_fm.get("description") or "").strip(),
-               "license": str(catalog_fm.get("license") or "").strip(), "renames": renames}
+               "license": str(catalog_fm.get("license") or "").strip()}
 
     packs = discover_packs(src, {str(k): str(v) for k, v in vocabulary.items()})
     for p in packs:
@@ -552,7 +568,7 @@ def main() -> None:
     write(OUT / ".claude-plugin" / "marketplace.json", json.dumps(render_marketplace(packs, catalog, version), indent=2) + "\n")
 
     # CONTRIBUTING.md, when the source carries it, so an agent arriving at llms.txt can find how to
-    # author a tool; its sibling references (words/palindrome.py) resolve at the same paths here.
+    # author a tool; its sibling references (words/is-palindrome.py) resolve at the same paths here.
     contributing = (src / CONTRIBUTING).exists()
     if contributing:
         shutil.copy2(src / CONTRIBUTING, OUT / CONTRIBUTING)
@@ -577,7 +593,7 @@ def main() -> None:
         {"type": "Catalog", "title": catalog["title"], "description": catalog["description"], "version": version,
          "tags": vocabulary, "generated": generated},
         catalog["title"],
-        f"Every pack as a Category, every tool as an Attested Computation. Computations and the attester are located by canonical URL under {base}/ and pinned by `procedure_hash`; in `catalog.tar.gz` the same files sit one level above this bundle at the URL's path.",
+        f"Every pack as a Category, every tool as an Attested Computation. Computations and the attester are located by canonical URL under {base}/ and pinned by `procedure_hash`; in `tools.tar.gz` the same files sit one level above this bundle at the URL's path.",
         [(f"{p['name']}/{INDEX}", p["title"], f"{len(p['tools'])} tools — {p['description']}") for p in packs],
     )
 
@@ -588,7 +604,6 @@ def main() -> None:
         "description": catalog["description"],
         **({"license": catalog["license"]} if catalog["license"] else {}),
         "version": version,
-        "renames": renames,
         "generated": generated,
         "tags": vocabulary,
         "packs": [{k: p[k] for k in ("name", "title", "description", "tags")} | {"tools": [t["stem"] for t in p["tools"]]} for p in packs],

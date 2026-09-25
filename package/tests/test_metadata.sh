@@ -1,5 +1,5 @@
 #!/bin/bash
-# tests/test_registry_lookup.py — test net/registry-lookup.py with package registries
+# tests/test_metadata.py — test package/metadata.py with package registries
 
 set -eu
 cd "$(dirname "$0")/.."
@@ -7,11 +7,11 @@ FRAGLETC=${FRAGLETC:-fragletc}
 OUTPUT=$(mktemp -d)
 trap "rm -rf $OUTPUT" EXIT
 
-echo "Testing net/registry-lookup.py..."
+echo "Testing package/metadata.py..."
 
 # Test 1: PyPI lookup (real package, latest version)
 echo "  [1/5] PyPI: requests (latest)"
-$FRAGLETC registry-lookup.py \
+$FRAGLETC metadata.py \
   -p registry=pypi \
   -p package=requests \
   -p version=latest \
@@ -25,7 +25,7 @@ echo "    ✓ PyPI lookup OK"
 
 # Test 2: PyPI JSON format
 echo "  [2/5] PyPI: JSON format"
-$FRAGLETC registry-lookup.py \
+$FRAGLETC metadata.py \
   -p registry=pypi \
   -p package=requests \
   -p format=json \
@@ -35,7 +35,7 @@ echo "    ✓ PyPI JSON OK"
 
 # Test 3: npm package
 echo "  [3/5] npm: express"
-$FRAGLETC registry-lookup.py \
+$FRAGLETC metadata.py \
   -p registry=npm \
   -p package=express \
   -p version=latest \
@@ -48,7 +48,7 @@ echo "    ✓ npm lookup OK"
 
 # Test 4: crates.io
 echo "  [4/5] crates.io: tokio"
-$FRAGLETC registry-lookup.py \
+$FRAGLETC metadata.py \
   -p registry=crates \
   -p package=tokio \
   -p version=latest \
@@ -61,7 +61,7 @@ echo "    ✓ crates.io OK"
 
 # Test 5: Docker Hub
 echo "  [5/5] Docker Hub: library/alpine"
-$FRAGLETC registry-lookup.py \
+$FRAGLETC metadata.py \
   -p registry=dockerhub \
   -p 'package=library/alpine' \
   -p version=latest \
@@ -72,4 +72,4 @@ EXIT_CODE=$(jq -r '.exit_code' $OUTPUT/docker_alpine.json)
 test "$EXIT_CODE" = "0" || (echo "FAIL: Docker Hub lookup failed (exit $EXIT_CODE)"; exit 1)
 echo "    ✓ Docker Hub OK"
 
-echo "✓ All net/registry-lookup.py tests passed"
+echo "✓ All package/metadata.py tests passed"

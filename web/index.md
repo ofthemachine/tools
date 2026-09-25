@@ -1,10 +1,10 @@
 ---
 type: Category
 title: Web
-description: Search, readable extraction, metadata, screenshots, and print-to-PDF for any URL.
+description: Search the web and turn a page into Markdown, PDF, a screenshot, or its metadata; find an existing archived snapshot.
 tags: [internet, documents]
 ---
 
 # Web
 
-Search, readable extraction, metadata, screenshots, and print-to-PDF for any URL.
+Search the web and turn a page into Markdown, PDF, a screenshot, or its metadata; find an existing archived snapshot.

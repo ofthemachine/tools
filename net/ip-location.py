@@ -18,11 +18,11 @@ try:
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "curl"}), timeout=15) as resp:
         data = json.load(resp)
 except Exception as e:
-    print(f"geo-ip lookup failed: {e}", file=sys.stderr)
+    print(f"ip-location lookup failed: {e}", file=sys.stderr)
     sys.exit(1)
 
 if data.get("status") != "success":
-    print(f"geo-ip lookup failed for {data.get('query') or ip or 'own address'}: {data.get('message', 'no reason given')}", file=sys.stderr)
+    print(f"ip-location lookup failed for {data.get('query') or ip or 'own address'}: {data.get('message', 'no reason given')}", file=sys.stderr)
     sys.exit(1)
 
 print(f"{data['city']}, {data['regionName']}, {data['country']} ({data['countryCode']}) {data['lat']},{data['lon']} {data['timezone']}")

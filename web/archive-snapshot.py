@@ -10,7 +10,7 @@ import sys
 
 target = os.environ.get("URL", "").strip()
 if not target:
-    print("archive-lookup: missing url", file=sys.stderr)
+    print("archive-snapshot: missing url", file=sys.stderr)
     sys.exit(1)
 
 conn = http.client.HTTPSConnection("archive.ph", timeout=20)
@@ -23,7 +23,7 @@ try:
         if loc:
             print(loc)
 except OSError as e:
-    print(f"archive-lookup: request failed: {e}", file=sys.stderr)
+    print(f"archive-snapshot: request failed: {e}", file=sys.stderr)
     sys.exit(1)
 finally:
     conn.close()

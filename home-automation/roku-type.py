@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=Type free text into a Roku device's currently focused on-screen keyboard field (e.g. a search box) over its ECP API -- sends one keypress/Lit_<char> per character in a single call, instead of one fraglet run per letter. Pairs with home-automation/roku-keypress.py to navigate to the field first.
+#: d=Type free text into a Roku device's currently focused on-screen keyboard field (e.g. a search box) over its ECP API -- sends one keypress/Lit_<char> per character in a single call, instead of one fraglet run per letter. Pairs with home-automation/roku-press.py to navigate to the field first.
 #: when=Use when the user asks to type a search query or other text into whatever on-screen text field is currently focused on a Roku.
 #: network=required
 #: stdin=none

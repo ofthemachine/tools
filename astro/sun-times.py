@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=Sunrise, sunset, and day length for a latitude, longitude, and UTC date, computed with ephem (no network). Times are printed in the given UTC offset so a caller can pass the local zone; the day-length delta against the day before says whether days are getting longer or shorter. Companion to net/geo-ip.py, whose lat,lon this takes.
+#: d=Sunrise, sunset, and day length for a latitude, longitude, and UTC date, computed with ephem (no network). Times are printed in the given UTC offset so a caller can pass the local zone; the day-length delta against the day before says whether days are getting longer or shorter. Companion to net/ip-location.py, whose lat,lon this takes.
 #: when=Use when the user asks when the sun rises or sets somewhere, how long the day is, or an almanac or weather box needs sun times for a place and date.
 #: network=none
 #: stdin=none

@@ -1,10 +1,10 @@
 ---
 type: Category
 title: Net
-description: The host's place on the network and package registry queries (PyPI, npm, crates, Docker Hub).
-tags: [internet, engineering]
+description: The host's place on the network -- its public IP address and where an IP address is.
+tags: [internet]
 ---
 
 # Net
 
-The host's place on the network and package registry queries (PyPI, npm, crates, Docker Hub).
+The host's place on the network -- its public IP address and where an IP address is.

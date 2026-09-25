@@ -2,7 +2,7 @@
 
 A tool is a fraglet: a single-purpose, executable script with a container shebang and declared input/output contracts. This catalog holds level-0 tools only -- one file each, nothing authored outside the file. Composite skills that drive these tools live in `ofthemachine/skills`, not here.
 
-A tool PR touches one file: `<pack>/<stem>.<ext>`. A new pack adds `<pack>/index.md` (title, description, `tags` from the vocabulary in the root `index.md`) and its first tool. Read the root `index.md` for the taxonomy and growth rules before choosing a pack name. Review is `make build` -- `fragletc lint --strict`, the compiler, and the validator; CI runs the same.
+A tool PR touches one file: `<pack>/<stem>.<ext>`. A new pack adds `<pack>/index.md` (title, description, `tags` from the vocabulary in the root `index.md`) and its first tool. Read the root `index.md` for the taxonomy and growth rules before naming anything: the pack is the subject, the stem is what the tool gives you (`weather/forecast`, `receipt/attest`, `doc/markdown-to-pdf`). Review is `make build` -- `fragletc lint --strict`, the compiler, and the validator; CI runs the same.
 
 ## Clone a Sibling (Do Not Start From Blank)
 
@@ -10,14 +10,15 @@ Match the desired I/O shape and copy that script — shebang, header, body shape
 
 | Desired Input/Output Shape | Existing Sibling to Clone |
 | :--- | :--- |
-| **String Parameter** (e.g. text, word, regex) | `words/palindrome.py` |
+| **String Parameter** (e.g. text, word, regex) | `words/is-palindrome.py` |
 | **No-Param External API** (fetch, print) | `trivia/advice.py` |
 | **External API + String Params** | `weather/current.py` |
-| **File XOR Text** (file mount and/or inline string) | `data/jq-slice.py` |
+| **File XOR Text** (file mount and/or inline string) | `data/jq.py` |
 | **Single Host File Mount** (e.g. source code, image) | `code/symbol-outline.py` |
-| **Archive Bundle Input** (multi-file, assets) | `doc/markdowns-to-pdf.py` |
-| **Declared File Output** (e.g. image, PDF) | `meme/n-line.sh` |
+| **Archive Bundle Input** (multi-file, assets) | `doc/markdown-to-pdf.py` |
+| **Declared File Output** (e.g. image, PDF) | `meme/caption.sh` |
 | **Two Host File Mounts** (comparison, merge) | `image/diff.py` |
+| **API Key** (declared secret, host fixed) | `llm/cohere.py` |
 
 **Trigger (one line):** `#: when=Use when ...` — the situations an agent should reach for this tool, in the words a request would use. `d=` is what the tool does; `when=` is when to use it. Both land verbatim in the pack's `SKILL.md`, so they are the sentences an agent matches a request against.
 
@@ -25,7 +26,11 @@ Match the desired I/O shape and copy that script — shebang, header, body shape
 
 **Network (one line):** `#: network=required` if the tool fetches or calls an API; `#: network=none` if it is pure computation. When `network=none` is declared, `fragletc` enforces isolation with `docker run --network none`.
 
-**Header vocabulary is closed:** the build reads the directives fragletc defines — `d=`, `when=`, `network=`, `stdin=`, `param=`, `output=` — and refuses any other `#:` key. New directives are a fragletc change first, never a catalog convention. `--image` must pin a digest (`@sha256:`); a tag is refused.
+**Secrets (one line each):** a credential is never a `-p` param — params are recorded in plaintext in every receipt. Declare it as `#: secret=HA_TOKEN:d=Home Assistant long-lived access token` and read the file named by `$HA_TOKEN_FILE` (`/run/fraglet/secrets/HA_TOKEN`); if an SDK insists on an env var, set it inside your own process from that file. The caller exports `HA_TOKEN` (or wraps the call: `op run -- …`, `HA_TOKEN=$(security find-generic-password -w -s ha) …`); fragletc copies it into the container as a file, so it never appears in argv, `docker inspect`, the container's environment, or a receipt. A missing secret fails host-side with exit 2.
+
+**Bounded stdout:** stdout goes straight into an agent's context, so a tool whose output can grow without limit (fetches, searches, extraction, API calls) must bound it. Give the caller a way to narrow the result (a filter or selection param such as `jq`, `pages` or `count`), and a byte cap (`max_bytes`, default a few KB) that ends stdout with one line saying so: `[truncated at N bytes; narrow with …]`. A result that is naturally large (a document, a transcript, an archive) belongs in a declared `output=` file, with stdout carrying only a short summary.
+
+**Header vocabulary is closed:** the build reads the directives fragletc defines — `d=`, `when=`, `network=`, `stdin=`, `param=`, `output=`, `secret=` — and refuses any other `#:` key. New directives are a fragletc change first, never a catalog convention. `--image` must pin a digest (`@sha256:`); a tag is refused.
 
 **Form of `d=`:** a noun phrase naming the result for a tool that returns a value ("The Moon's phase on a given date…"), an imperative for a transformation ("Render one Markdown file to PDF…"). Say what distinguishes it from its siblings, naming them by `<pack>/<stem>`; when a sibling is renamed, grep for it.
 
@@ -52,7 +57,7 @@ Match the desired I/O shape and copy that script — shebang, header, body shape
 - [ ] `--fraglet-help` outputs clean documentation (including param `description=` / `d=` when set).
 - [ ] `fragletc lint --strict` reports the file clean (see Parameter Conformance below).
 - [ ] Script writes file outputs strictly under `/output/` (matching declared `#: output=`).
-- [ ] Running `make build` compiles `catalog/` and passes validation with zero errors; the new tool appears in `catalog/<pack>/SKILL.md` and `catalog/llms.txt`.
+- [ ] Running `make build` compiles `dist/` and passes validation with zero errors; the new tool appears in `dist/<pack>/SKILL.md` and `dist/llms.txt`.
 
 ---
 
@@ -72,12 +77,12 @@ Conformant — `web/screenshot.py`:
 ```python
 #: network=required
 #: param=url:required:d=Page URL to capture
-#: param=headers:d=JSON object of extra HTTP headers (e.g. Authorization)
+#: param=headers:d=JSON object of extra non-secret HTTP headers (e.g. Accept-Language); recorded in plaintext in receipts, so never credentials
 #: param=settle_ms:default=2000:description=Extra wait after page load for async JS content
 settle_ms = int(os.environ["SETTLE_MS"])      # default injected by fragletc; no fallback here
 ```
 
-Non-conformant — what `news/rss-headlines.py` looked like before:
+Non-conformant — an early draft of `news/headlines.py`:
 
 ```python
 #: param=feed:required                        # no description
@@ -86,11 +91,11 @@ count = int(os.environ.get("COUNT") or 5)     # default re-encoded in the body (
 ```
 
 ```
-$ fragletc lint news/rss-headlines.py
-news/rss-headlines.py: warning: network-missing: no #: network= line; declare network=none (enforced hermetic) or network=required
-news/rss-headlines.py:3: warning: param-no-description: param=feed has no description; add :d=<what the caller should pass>
-news/rss-headlines.py:4: warning: param-no-description: param=count has no description; add :d=<what the caller should pass>
-news/rss-headlines.py:4: warning: param-optional-redundant: param=count: optional is the default and does nothing; omit it
+$ fragletc lint news/headlines.py
+news/headlines.py: warning: network-missing: no #: network= line; declare network=none (enforced hermetic) or network=required
+news/headlines.py:3: warning: param-no-description: param=feed has no description; add :d=<what the caller should pass>
+news/headlines.py:4: warning: param-no-description: param=count has no description; add :d=<what the caller should pass>
+news/headlines.py:4: warning: param-optional-redundant: param=count: optional is the default and does nothing; omit it
 ```
 
 Fix: `#: param=count:default=5:d=Number of headlines to print` and `count = int(os.environ["COUNT"])`.
@@ -105,7 +110,7 @@ Read the rest of this document only when the sibling table has no matching row, 
 
 - **Pin on creation, never churn:** pin the shebang to the latest digest that provides the needed libraries. Never cascade repins to working siblings.
 - **Zero runtime installs:** never `pip install` / `apk add` / `apt-get` in the script body. Missing libs → update the container in `ofthemachine/containers`.
-- **Any language:** the shebang chooses the image, and any fraglet-enabled container works -- the 90+ `100hellos/<lang>` images or the purpose-built `ofthemachine/<image>` ones (`python3`, `headless-browser`, `latex`, `meme`, `home-automation`, `3d-printing`, ...). `words/wordle-solve.java` runs on `100hellos/java`. Pin by digest.
+- **Any language:** the shebang chooses the image, and any fraglet-enabled container works -- the 90+ `100hellos/<lang>` images or the purpose-built `ofthemachine/<image>` ones (`python3`, `headless-browser`, `latex`, `meme`, `home-automation`, `3d-printing`, ...). `words/solve-wordle.java` runs on `100hellos/java`. Pin by digest.
 
 ### Directive Specification Format
 
@@ -132,6 +137,7 @@ Declare metadata and contracts immediately below the shebang with `#: ` lines:
 - `param=<alias>:…:description=<prose>` or `:d=<prose>`: Per-param help text (must be last modifier; spaces OK). Surfaces in `--fraglet-help`.
 - `param=<alias>:file`: Mounts the host file read-only at `/input/<alias>`.
 - `output=<relpath>`: Script writes `/output/<relpath>`.
+- `secret=<NAME>:d=<prose>` (one per line, NAME upper-case): the caller's env var NAME, readable by the script only as the file `$NAME_FILE`.
 
 Access parameters via environment variables (e.g. `os.environ["INPUT_TEXT"]` or `$INPUT_TEXT`). Do not re-encode `default=` in the body — the header is the source of truth.
 
@@ -147,7 +153,7 @@ Access parameters via environment variables (e.g. `os.environ["INPUT_TEXT"]` or 
 
 A fraglet execution is identified by the pinned image digest, the script body, declared parameters, and declared `:file` mount contents. That closure makes runs memoizable and distributable.
 
-**No directory mounts (by design).** Narrow to a single file, accept a tarball/zip as a file param (see `doc/markdowns-to-pdf.py`), or accept the capability is out of scope. A tool that cannot be expressed as a fraglet does not belong in this catalog; there are no exceptions.
+**No directory mounts (by design).** Narrow to a single file, accept a tarball/zip as a file param (see `doc/markdown-to-pdf.py`), or accept the capability is out of scope. A tool that cannot be expressed as a fraglet does not belong in this catalog; there are no exceptions.
 
 **Network reach.** `#: network=none` asserts hermetic execution and is enforced host-side. `#: network=required` marks live external state; do not memoize indefinitely. Explicit `fragletc --network` overrides the header. The compiler surfaces `network:` in the pack's SKILL.md and derives the OKF concept's `execution_class` from it: a hermetic tool's `fragletc --receipt` memo key fully determines its outputs, so keep `network=none` honest — a hermetic tool that secretly reads the clock or the network breaks that promise.
 

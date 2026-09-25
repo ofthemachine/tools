@@ -1,8 +1,8 @@
 name: pages
 
 # tools.ofthemachine.com is a projection of the catalog. Every content-producing step is a
-# fraglet run by `make site`: fragletc lint -> meta/compile-catalog.py -> meta/validate-catalog.py
-# -> meta/site.py, each in an image pulled by digest. The site root is the catalog root, so
+# fraglet run by `make site`: fragletc lint -> catalog/compile.py -> catalog/validate.py
+# -> catalog/site.py, each in an image pulled by digest. The site root is the catalog root, so
 # llms.txt, every SKILL.md and every tool file are served at the same paths as in the repo.
 on:
   push:

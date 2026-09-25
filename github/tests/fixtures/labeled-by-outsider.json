@@ -1,0 +1,24 @@
+{
+  "action": "labeled",
+  "label": {
+    "name": "poem:ready"
+  },
+  "issue": {
+    "number": 7,
+    "title": "Poem: toaster in the frost",
+    "html_url": "https://github.com/ofthemachine/poetry/issues/7",
+    "user": {
+      "login": "someone-else"
+    },
+    "labels": [
+      {
+        "name": "poem:ready"
+      }
+    ],
+    "body": "### Machine\n\nToaster\n\n### Subject\n\nThe first frost of autumn\n\n### Form\n\nHaiku\n\n### Tone\n\nwistful\n\n### Must include\n\n_No response_\n\n### Notes\n\nKeep it gentle.\n\n### Agreements\n\n- [X] This poem may be published\n- [ ] Credit me by name\n",
+    "updated_at": "2026-09-25T12:00:00Z"
+  },
+  "sender": {
+    "login": "mallory"
+  }
+}
