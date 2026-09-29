@@ -12,7 +12,7 @@ echo "Testing doc/pdf-to-images.py..."
 
 # Test 1: single page to PNG
 echo "  [1/4] single page to PNG"
-$FRAGLETC pdf-to-images.py \
+./pdf-to-images.py \
   -p "pdf_source=$FIXTURES/sample.pdf" \
   -p page=1 \
   -p scale=2.0 \
@@ -27,7 +27,7 @@ echo "    ✓ single page OK"
 
 # Test 2: all pages to tar.gz bundle
 echo "  [2/4] all pages to tar.gz"
-$FRAGLETC pdf-to-images.py \
+./pdf-to-images.py \
   -p "pdf_source=$FIXTURES/sample.pdf" \
   -p page=all \
   -p scale=2.0 \
@@ -41,7 +41,7 @@ echo "    ✓ all pages to tar.gz OK"
 # Test 3: different scale factors (determinism)
 echo "  [3/4] scale factor variations"
 for scale in 1.0 2.0 3.0; do
-  $FRAGLETC pdf-to-images.py \
+  ./pdf-to-images.py \
     -p "pdf_source=$FIXTURES/sample.pdf" \
     -p page=1 \
     -p "scale=$scale" \
@@ -52,7 +52,7 @@ echo "    ✓ scale factors OK"
 
 # Test 4: determinism — same input, same memo_key
 echo "  [4/4] determinism check"
-$FRAGLETC pdf-to-images.py \
+./pdf-to-images.py \
   -p "pdf_source=$FIXTURES/sample.pdf" \
   -p page=1 \
   -p scale=2.0 \

@@ -12,7 +12,7 @@ echo "Testing sheet/inspect.py and sheet/convert.py..."
 
 # Test inspect.py: metadata extraction
 echo "  [1/6] sheet/inspect.py metadata extraction"
-$FRAGLETC inspect.py \
+./inspect.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p format=markdown \
   --receipt $OUTPUT/inspect.json
@@ -25,7 +25,7 @@ echo "    ✓ inspect.py OK"
 
 # Test inspect.py: JSON format
 echo "  [2/6] sheet/inspect.py JSON format"
-$FRAGLETC inspect.py \
+./inspect.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p format=json \
   --receipt $OUTPUT/inspect_json.json
@@ -34,7 +34,7 @@ echo "    ✓ inspect.py JSON OK"
 
 # Test convert.py: extract sheet to CSV
 echo "  [3/6] sheet/convert.py to CSV"
-$FRAGLETC convert.py \
+./convert.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p sheet=1 \
   -p format=csv \
@@ -47,7 +47,7 @@ echo "    ✓ convert.py to CSV OK"
 
 # Test convert.py: extract sheet to JSON
 echo "  [4/6] sheet/convert.py to JSON"
-$FRAGLETC convert.py \
+./convert.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p sheet=1 \
   -p format=json \
@@ -62,7 +62,7 @@ echo "    ✓ convert.py to JSON OK"
 
 # Test convert.py: by sheet name (if available)
 echo "  [5/6] sheet/convert.py by sheet name"
-$FRAGLETC convert.py \
+./convert.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p sheet=Sheet1 \
   -p format=csv \
@@ -72,7 +72,7 @@ echo "    ✓ convert.py by sheet name OK"
 
 # Test determinism
 echo "  [6/6] determinism check"
-$FRAGLETC convert.py \
+./convert.py \
   -p "spreadsheet=$FIXTURES/sample.xlsx" \
   -p sheet=1 \
   -p format=json \

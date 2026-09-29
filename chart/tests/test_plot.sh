@@ -12,7 +12,7 @@ echo "Testing chart/plot.py..."
 
 # Test 1: bar chart from CSV file
 echo "  [1/6] bar chart from CSV file"
-$FRAGLETC plot.py \
+./plot.py \
   -p "data=$FIXTURES/sales.csv" \
   -p type=bar \
   -p x=month \
@@ -29,7 +29,7 @@ echo "    ✓ bar chart OK (memo_key: ${MEMO1:0:16}...)"
 
 # Test 2: line chart from CSV
 echo "  [2/6] line chart from CSV file"
-$FRAGLETC plot.py \
+./plot.py \
   -p "data=$FIXTURES/products.csv" \
   -p type=line \
   -p x=product \
@@ -41,7 +41,7 @@ echo "    ✓ line chart OK"
 
 # Test 3: pie chart
 echo "  [3/6] pie chart from CSV"
-$FRAGLETC plot.py \
+./plot.py \
   -p "data=$FIXTURES/products.csv" \
   -p type=pie \
   -p x=product \
@@ -53,7 +53,7 @@ echo "    ✓ pie chart OK"
 
 # Test 4: scatter chart
 echo "  [4/6] scatter chart from CSV"
-$FRAGLETC plot.py \
+./plot.py \
   -p "data=$FIXTURES/products.csv" \
   -p type=scatter \
   -p x=q1 \
@@ -65,7 +65,7 @@ echo "    ✓ scatter chart OK"
 
 # Test 5: determinism — same input, same memo_key
 echo "  [5/6] determinism check"
-$FRAGLETC plot.py \
+./plot.py \
   -p "data=$FIXTURES/sales.csv" \
   -p type=bar \
   -p x=month \
@@ -77,7 +77,7 @@ echo "    ✓ determinism OK"
 
 # Test 6: error handling — invalid chart type
 echo "  [6/6] error handling (invalid chart type)"
-if $FRAGLETC plot.py \
+if ./plot.py \
   -p "data=$FIXTURES/sales.csv" \
   -p type=invalid \
   -p x=month \

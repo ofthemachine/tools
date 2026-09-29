@@ -12,7 +12,7 @@ echo "Testing data/sql.py..."
 
 # Test 1: GROUP BY aggregation
 echo "  [1/5] GROUP BY aggregation"
-$FRAGLETC sql.py \
+./sql.py \
   -p "table_source=$FIXTURES/employees.csv" \
   -p 'query=SELECT dept, count(*) as count, round(avg(salary), 2) as avg_salary FROM data GROUP BY dept ORDER BY dept' \
   -p format=markdown \
@@ -25,7 +25,7 @@ echo "    ✓ GROUP BY OK"
 
 # Test 2: WHERE clause
 echo "  [2/5] WHERE clause filtering"
-$FRAGLETC sql.py \
+./sql.py \
   -p "table_source=$FIXTURES/employees.csv" \
   -p 'query=SELECT name, salary FROM data WHERE salary > 80000 ORDER BY salary DESC' \
   -p format=markdown \
@@ -35,7 +35,7 @@ echo "    ✓ WHERE clause OK"
 
 # Test 3: JSON output format
 echo "  [3/5] JSON output format"
-$FRAGLETC sql.py \
+./sql.py \
   -p "table_source=$FIXTURES/employees.csv" \
   -p 'query=SELECT name, dept FROM data LIMIT 3' \
   -p format=json \
@@ -45,7 +45,7 @@ echo "    ✓ JSON output OK"
 
 # Test 4: CSV output format
 echo "  [4/5] CSV output format"
-$FRAGLETC sql.py \
+./sql.py \
   -p "table_source=$FIXTURES/employees.csv" \
   -p 'query=SELECT name, salary FROM data LIMIT 2' \
   -p format=csv \
@@ -55,7 +55,7 @@ echo "    ✓ CSV output OK"
 
 # Test 5: determinism
 echo "  [5/5] determinism check"
-$FRAGLETC sql.py \
+./sql.py \
   -p "table_source=$FIXTURES/employees.csv" \
   -p 'query=SELECT dept, count(*) as count FROM data GROUP BY dept ORDER BY dept' \
   -p format=markdown \
