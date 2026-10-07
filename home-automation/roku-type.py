@@ -4,7 +4,7 @@
 #: network=required
 #: stdin=none
 #: param=ip:required:d=LAN IP address of the Roku, e.g. 192.168.0.73
-#: param=text:required:d=Text to type into the currently focused on-screen field, e.g. "stargate atlantis"
+#: param=text:required:kind=text:d=Text to type into the currently focused on-screen field, e.g. "stargate atlantis"
 import os
 import sys
 import time
