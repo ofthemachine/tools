@@ -6,6 +6,7 @@
 #: param=feed:default=feeds.bbci.co.uk/news/world/rss.xml:d=RSS or Atom feed URL (https:// is assumed when no scheme is given)
 #: param=count:default=5:d=How many headlines to print
 #: param=format:default=markdown:d=Output format: "markdown" for formatted clickable links, or "tsv" for title\tlink\tdate
+#: output=headlines.md
 import email.utils
 import os
 import sys
@@ -120,4 +121,6 @@ for idx, (t, l, d, _) in enumerate(rows, 1):
     else:
         lines.append(f"{idx}. [{t}]({l}){suffix}")
 
-print("\n".join(lines))
+text = "\n".join(lines)
+print(text)
+open("/output/headlines.md", "w", encoding="utf-8").write(text + "\n")
