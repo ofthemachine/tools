@@ -10,7 +10,8 @@
 #: param=model:default=command-a-03-2025:d=Cohere model id
 #: param=temperature:default=0.7:d=Sampling temperature, 0 to 1
 #: param=seed:default=42:d=Sampling seed; same seed and inputs give best-effort identical output
-#: param=max_tokens:default=1024:d=Maximum tokens to generate
+#: param=max_tokens:default=1024:d=Maximum tokens to generate (a thinking model's thinking counts)
+#: param=thinking_budget:d=For a thinking model (e.g. command-a-plus-05-2026): the most tokens it may think before answering, so the answer fits max_tokens; empty: the model's default
 #: output=response.md
 import json
 import os
@@ -47,6 +48,8 @@ body = {
     "seed": seed,
     "max_tokens": int(os.environ["MAX_TOKENS"]),
 }
+if os.environ.get("THINKING_BUDGET"):
+    body["thinking"] = {"type": "enabled", "token_budget": int(os.environ["THINKING_BUDGET"])}
 key = open(os.environ["COHERE_API_KEY_FILE"], encoding="utf-8").read().strip()
 req = urllib.request.Request(
     ENDPOINT,

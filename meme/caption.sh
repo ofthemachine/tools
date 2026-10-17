@@ -1,4 +1,4 @@
-#!/usr/bin/env -S fragletc --image ofthemachine/meme@sha256:e8781eb2f6282153701c4343b1109d05fef3eef28782035689719113bebdd872
+#!/usr/bin/env -S fragletc --image ofthemachine/meme@sha256:8a3ac29b110b9471e7688bf8d7bdc12fe83fd49da63a084a3db1a41549b6c57f
 #: d=Render a caption onto a meme-cli template. lines is a single "|"-delimited string, one caption per box in order, whatever the box count -- a 1-box template is just "one caption", a 2-box is "top|bottom", an 8-box is "a|b|c|d|e|f|g|h". Run templates.sh show <id> first to check the real box count/order.
 #: when=Use when the user wants a meme rendered from a known template with specific captions.
 #: network=none

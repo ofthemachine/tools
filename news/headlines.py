@@ -5,7 +5,8 @@
 #: stdin=none
 #: param=feed:default=feeds.bbci.co.uk/news/world/rss.xml:d=RSS or Atom feed URL (https:// is assumed when no scheme is given)
 #: param=count:default=5:d=How many headlines to print
-#: param=format:default=markdown:d=Output format: "markdown" for formatted clickable links, or "tsv" for title\tlink\tdate
+#: param=format:default=markdown:d=Stdout format: "markdown" for formatted clickable links, or "tsv" for title\tlink\tdate
+#: output=headlines.md:d=The headlines as the markdown list, whatever format stdout takes, for a later step to read
 import email.utils
 import os
 import sys
@@ -102,12 +103,7 @@ if not rows:
     print("no headlines found", file=sys.stderr)
     sys.exit(1)
 
-if fmt == "tsv":
-    for t, l, _, raw_d in rows:
-        print(f"{t}\t{l}\t{raw_d}")
-    sys.exit(0)
-
-# Markdown format
+# Markdown, always written to headlines.md for a later step; stdout in the format asked for
 lines = []
 if channel_title:
     lines.append(f"📰 **{channel_title}**")
@@ -120,4 +116,12 @@ for idx, (t, l, d, _) in enumerate(rows, 1):
     else:
         lines.append(f"{idx}. [{t}]({l}){suffix}")
 
-print("\n".join(lines))
+markdown = "\n".join(lines)
+with open("/output/headlines.md", "w", encoding="utf-8") as f:
+    f.write(markdown + "\n")
+
+if fmt == "tsv":
+    for t, l, _, raw_d in rows:
+        print(f"{t}\t{l}\t{raw_d}")
+else:
+    print(markdown)
