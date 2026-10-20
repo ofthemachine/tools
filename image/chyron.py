@@ -8,6 +8,7 @@
 #: param=ticker:d=Text for the ticker strip along the bottom; empty: no ticker
 #: param=show:default=NEWS:d=The show's name, drawn as the corner bug
 #: param=width:default=1280:kind=range(320..3840):d=Image width in pixels (height is 9/16 of it)
+#: param=mood:default=on-air:kind=enum(on-air|frazzled|beaming):d=How the anchor looks: on-air (composed), frazzled (hair up, tie loose, sweating) or beaming (a grin)
 #: output=chyron.png
 import os
 import sys
@@ -19,6 +20,7 @@ kicker = os.environ.get("KICKER", "").strip().upper()
 # The container's only font has no bullets or dingbats: separators become a bar.
 ticker = " ".join(os.environ.get("TICKER", "").translate({ord(c): " | " for c in "•·●▪◆★"}).split())
 show = os.environ.get("SHOW", "").strip().upper()
+mood = os.environ.get("MOOD", "").strip().lower()
 try:
     width = int(os.environ.get("WIDTH", ""))
 except ValueError:
@@ -52,17 +54,34 @@ desk_top = int(height * 0.62)
 draw.rectangle([0, desk_top, width, height], fill=(12, 18, 34))
 draw.rectangle([0, desk_top, width, desk_top + int(4 * u)], fill=(200, 160, 60))
 
-# The anchor at the desk: shoulders, a red tie, a confident head of hair.
+# The anchor at the desk: shoulders, a tie, a head of hair, drawn as the
+# mood says.
 cx, top = int(width * 0.5), int(height * 0.22)
+frazzled, beaming = mood == "frazzled", mood == "beaming"
 draw.rounded_rectangle([cx - 150 * u, desk_top - 120 * u, cx + 150 * u, desk_top + 40 * u], radius=int(60 * u), fill=(34, 38, 52))
 draw.polygon([(cx - 40 * u, desk_top - 120 * u), (cx, desk_top - 40 * u), (cx + 40 * u, desk_top - 120 * u)], fill=(236, 236, 240))
-draw.polygon([(cx - 12 * u, desk_top - 112 * u), (cx + 12 * u, desk_top - 112 * u), (cx + 16 * u, desk_top - 50 * u), (cx, desk_top - 34 * u), (cx - 16 * u, desk_top - 50 * u)], fill=(190, 30, 40))
+tie_dx = 18 * u if frazzled else 0  # a loosened tie hangs off to one side
+tie_dy = 14 * u if frazzled else 0
+draw.polygon([(cx - 12 * u + tie_dx, desk_top - 112 * u + tie_dy), (cx + 12 * u + tie_dx, desk_top - 112 * u + tie_dy), (cx + 16 * u + tie_dx, desk_top - 50 * u + tie_dy), (cx + tie_dx, desk_top - 34 * u + tie_dy), (cx - 16 * u + tie_dx, desk_top - 50 * u + tie_dy)], fill=(190, 30, 40))
 draw.rectangle([cx - 22 * u, desk_top - 150 * u, cx + 22 * u, desk_top - 118 * u], fill=(226, 184, 150))
-draw.ellipse([cx - 62 * u, top, cx + 62 * u, top + 150 * u], fill=(232, 192, 158))
-draw.chord([cx - 76 * u, top - 34 * u, cx + 80 * u, top + 92 * u], 180, 360, fill=(92, 58, 30))
+skin = (240, 176, 150) if frazzled else (232, 192, 158)
+draw.ellipse([cx - 62 * u, top, cx + 62 * u, top + 150 * u], fill=skin)
+hair = (92, 58, 30)
+draw.chord([cx - 76 * u, top - 34 * u, cx + 80 * u, top + 92 * u], 180, 360, fill=hair)
+if frazzled:  # the hair has given up
+    for i in range(7):
+        x = cx - 60 * u + i * 20 * u
+        draw.polygon([(x, top + 4 * u), (x + 10 * u, top - 46 * u - (i % 3) * 8 * u), (x + 20 * u, top + 4 * u)], fill=hair)
+    draw.ellipse([cx + 44 * u, top + 40 * u, cx + 54 * u, top + 56 * u], fill=(170, 210, 240))  # a bead of sweat
 draw.ellipse([cx - 30 * u, top + 60 * u, cx - 14 * u, top + 72 * u], fill=(30, 30, 40))
 draw.ellipse([cx + 14 * u, top + 60 * u, cx + 30 * u, top + 72 * u], fill=(30, 30, 40))
-draw.arc([cx - 28 * u, top + 88 * u, cx + 28 * u, top + 118 * u], 20, 160, fill=(120, 50, 50), width=max(2, int(4 * u)))
+if beaming:
+    draw.chord([cx - 34 * u, top + 82 * u, cx + 34 * u, top + 126 * u], 0, 180, fill=(120, 40, 40))
+    draw.rectangle([cx - 26 * u, top + 104 * u, cx + 26 * u, top + 110 * u], fill=(250, 250, 250))
+elif frazzled:
+    draw.line([cx - 22 * u, top + 104 * u, cx - 8 * u, top + 98 * u, cx + 8 * u, top + 106 * u, cx + 22 * u, top + 100 * u], fill=(120, 50, 50), width=max(2, int(4 * u)))
+else:
+    draw.arc([cx - 28 * u, top + 88 * u, cx + 28 * u, top + 118 * u], 20, 160, fill=(120, 50, 50), width=max(2, int(4 * u)))
 draw.rectangle([0, desk_top, width, height], fill=(12, 18, 34))
 draw.rectangle([0, desk_top, width, desk_top + int(4 * u)], fill=(200, 160, 60))
 
