@@ -5,7 +5,6 @@
 #: stdin=none
 #: param=ip:required:d=LAN IP address of the Hue bridge, e.g. 192.168.0.245
 #: secret=HUE_USER:d=Hue API username from link-button pairing (export HUE_USER on the agent host; delivered as a file, never a param, so it stays out of chat and the ledger)
-# x-operon: secret=HUE_USER
 import colorsys
 import json
 import math

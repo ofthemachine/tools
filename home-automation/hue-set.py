@@ -16,7 +16,6 @@
 #: param=transition:kind=number:d=Fade time in seconds (Hue transitiontime is deciseconds; default bridge 0.4s)
 #: param=name:d=New name for the light on the bridge (e.g. name="Living room"; id=all refused)
 #: param=delete:kind=bool:d=Set true to DELETE this light from the bridge (numeric id only -- names and all refused; irreversible)
-# x-operon: secret=HUE_USER
 import colorsys
 import json
 import os
