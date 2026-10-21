@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=A weather frog (Wetterfrosch): how nice one day will be somewhere, as a rung on its ladder from 0 (stay in) to 1 (glorious), plus a one-line croak saying why and whether to take an umbrella. Open-Meteo, no API key. The rung is a number a body can climb by; the croak is what it says.
+#: d=A weather frog (Wetterfrosch): how nice one day will be somewhere, as a rung on its ladder from 0 (stay in) to 1 (glorious), plus a one-line croak saying why and whether to take an umbrella, and the chance of rain (rain.txt, 0 to 1) a body can drink from. Open-Meteo, no API key. The rung is a number a body can climb by; the croak is what it says.
 #: when=Use when an agent's body or a morning card wants the forecast as one number and one line rather than a table.
 #: network=required
 #: stdin=none
@@ -7,6 +7,7 @@
 #: param=day:default=1:kind=enum(0|1|2):d=0 today, 1 tomorrow, 2 the day after
 #: output=rung.txt
 #: output=croak.txt
+#: output=rain.txt
 import json
 import os
 import sys
@@ -84,4 +85,6 @@ with open("/output/rung.txt", "w") as f:
     f.write(f"{rung}\n")
 with open("/output/croak.txt", "w") as f:
     f.write(croak + "\n")
+with open("/output/rain.txt", "w") as f:  # the chance of rain, 0 to 1: a need a body can drink from
+    f.write(f"{round(rain, 2)}\n")
 print(f"rung {rung}: {croak}")
