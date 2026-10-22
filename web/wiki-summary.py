@@ -46,7 +46,14 @@ try:
             extract = extract.encode()[:limit].decode("utf-8", "ignore").rsplit(" ", 1)[0] + " …"
         link = page.get("content_urls", {}).get("desktop", {}).get("page", base + "/wiki/" + urllib.parse.quote(title))
         text = f"# {page.get('title', title)}\n\n{link}\n\n{extract}\n"
-except (urllib.error.URLError, ValueError, KeyError) as e:
+except urllib.error.HTTPError as e:
+    print(f"Error: Wikipedia returned HTTP {e.code}", file=sys.stderr)
+    # EX_TEMPFAIL: a rate limit or a server error may pass (fragletc --retry)
+    sys.exit(75 if e.code == 429 or e.code >= 500 else 1)
+except (urllib.error.URLError, TimeoutError) as e:
+    print(f"Error: Wikipedia lookup failed: {e}", file=sys.stderr)
+    sys.exit(75)
+except (ValueError, KeyError) as e:
     print(f"Error: Wikipedia lookup failed: {e}", file=sys.stderr)
     sys.exit(1)
 

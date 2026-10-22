@@ -22,9 +22,14 @@ import urllib.request
 ENDPOINT = "https://api.cohere.com/v2/chat"
 
 
-def fail(msg):
+def fail(msg, code=1):
     print(f"Error: {msg}", file=sys.stderr)
-    sys.exit(1)
+    sys.exit(code)
+
+
+# EX_TEMPFAIL: a rate limit, a server error or a dropped connection may pass,
+# so fragletc --retry runs the call again; any other failure is final.
+TEMPFAIL = 75
 
 
 if os.environ.get("PROMPT"):
@@ -60,9 +65,10 @@ try:
     with urllib.request.urlopen(req, timeout=120) as resp:
         res = json.load(resp)
 except urllib.error.HTTPError as e:
-    fail(f"Cohere returned HTTP {e.code}: {e.read(500).decode('utf-8', 'replace')}")
+    fail(f"Cohere returned HTTP {e.code}: {e.read(500).decode('utf-8', 'replace')}",
+         TEMPFAIL if e.code == 429 or e.code >= 500 else 1)
 except (urllib.error.URLError, TimeoutError) as e:
-    fail(f"Cohere request failed: {e}")
+    fail(f"Cohere request failed: {e}", TEMPFAIL)
 
 parts = (res.get("message") or {}).get("content")
 text = "".join(p.get("text", "") for p in parts or [] if p.get("type") == "text")
