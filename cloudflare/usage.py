@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=A zone's Worker requests today (the UTC day Cloudflare's daily quota counts) against that quota: how many so far, where the day ends at the current rate, and the share of the quota that is, by Worker script; then the last hour's requests to the zone by path and by kind of client (a browser by name, else a program), never by address. The gauges are files (used.txt, projected.txt, share.txt, the projected share as a fraction) and stdout is a short report. Read-only: the token needs only Analytics read and Zone read.
+#: d=A zone's Worker requests today (the UTC day Cloudflare's daily quota counts) against that quota: how many so far, where the day ends if the last hour's rate holds, and the share of the quota that is, by Worker script; then the last hour's requests to the zone by path and by kind of client (a browser by name, else a program), never by address. The gauges are files (used.txt, projected.txt, share.txt, the projected share as a fraction) and stdout is a short report. Read-only: the token needs only Analytics read and Zone read.
 #: when=Use when someone asks how close a Cloudflare Workers site is to its daily request limit, what is driving its request count, or whether a client is polling too hard.
 #: network=required
 #: stdin=none
@@ -66,15 +66,22 @@ day = now.replace(hour=0, minute=0, second=0)
 hour = now - datetime.timedelta(hours=1)
 iso = lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-scripts = graphql(
-    "query($a:String!,$s:Time!,$e:Time!){viewer{accounts(filter:{accountTag:$a}){"
-    "workersInvocationsAdaptive(limit:50,filter:{datetime_geq:$s,datetime_leq:$e}){sum{requests errors} dimensions{scriptName}}}}}",
-    {"a": account_id, "s": iso(day), "e": iso(now)},
-)["accounts"][0]["workersInvocationsAdaptive"]
+def workers(since):
+    return graphql(
+        "query($a:String!,$s:Time!,$e:Time!){viewer{accounts(filter:{accountTag:$a}){"
+        "workersInvocationsAdaptive(limit:50,filter:{datetime_geq:$s,datetime_leq:$e}){sum{requests errors} dimensions{scriptName}}}}}",
+        {"a": account_id, "s": iso(since), "e": iso(now)},
+    )["accounts"][0]["workersInvocationsAdaptive"]
+
+
+scripts = workers(day)
 used = sum(s["sum"]["requests"] for s in scripts)
 errors = sum(s["sum"]["errors"] for s in scripts)
-elapsed = max((now - day).total_seconds(), 60)
-projected = round(used * 86400 / elapsed)
+# Where the day ends if the last hour's rate holds: steadier than today's
+# average, which early in the UTC day is a few minutes stretched to 24 hours.
+rate = sum(s["sum"]["requests"] for s in workers(hour))
+left = (day + datetime.timedelta(days=1) - now).total_seconds() / 3600
+projected = round(used + rate * left)
 share = projected / quota
 
 # The last hour, by path and by kind of client: what drives the count.
@@ -100,8 +107,8 @@ for name, value in (("used.txt", used), ("projected.txt", projected), ("share.tx
         f.write(f"{value}\n")
 
 ranked = lambda d: sorted(d.items(), key=lambda kv: (-kv[1], kv[0]))[:top]
-print(f"{zone}: {used} Worker requests since {iso(day)} ({errors} errors); at this rate {projected} by the day's end, "
-      f"{share:.0%} of {quota}.")
+print(f"{zone}: {used} Worker requests since {iso(day)} ({errors} errors); {rate} in the last hour, so {projected} "
+      f"by the day's end if that holds: {share:.0%} of {quota}.")
 for s in sorted(scripts, key=lambda s: -s["sum"]["requests"]):
     print(f"  script {s['dimensions']['scriptName']}: {s['sum']['requests']}")
 print(f"The last hour, {sum(paths.values())} requests:")
