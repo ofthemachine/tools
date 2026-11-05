@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=A Cloudflare zone's traffic over the last 24 minutes, 24 hours and 24 days, drawn and diagnosed: traffic.svg stacks the three as small multiples (requests from clients by status class, the daily Worker quota and today's projection on the days), worker.svg is the Worker's CPU time per hour against the free plan's 10 ms limit, and report.md is a Markdown report (a headline, the golden signals against the 24 hours before, the top talkers by kind of client and path, and diagnostics that name a poller, the side a 5xx came from, CPU headroom and the quota's pace). Clients are counted by kind (a browser by name, else a program). Read-only; cloudflare/usage is the quota alone, as gauges. It names top networks by masked address (/24, /48), never a whole one, since a report may be kept.
+#: d=A Cloudflare zone's traffic over the last 24 minutes, 24 hours and 24 days, drawn and diagnosed: traffic.svg stacks the three as small multiples (requests from clients by status class, the daily Worker quota and today's projection on the days), worker.svg is the Worker's CPU time per hour against the free plan's 10 ms limit, and report.md is a Markdown report (a headline, the golden signals against the 24 hours before, the top talkers by kind of client and path, and diagnostics that name a poller, the side a 5xx came from, CPU headroom and the quota's pace). Clients are counted by kind (a browser by name, else a program). Read-only; cloudflare/usage is the quota alone, as gauges. It names the top client addresses, with country and client.
 #: when=Use when someone asks what traffic a Cloudflare site or Worker is getting, for a chart of its requests over minutes, hours or days, why it returns errors, who is driving its request count, or how close it is to the daily Workers quota.
 #: network=required
 #: stdin=none
@@ -7,12 +7,11 @@
 #: param=zone:required:d=The zone (domain) to read, e.g. example.com
 #: param=quota:default=100000:d=Worker requests a day the plan allows (the free plan: 100000)
 #: param=tz:default=UTC:d=The IANA time zone the charts' times are shown in (the quota's day is always UTC's)
-#: param=top:default=5:d=How many top talkers and top networks to list
+#: param=top:default=5:d=How many top talkers and top addresses to list
 #: output=traffic.svg
 #: output=worker.svg
 #: output=report.md
 import datetime
-import ipaddress
 import json
 import os
 import re
@@ -32,12 +31,8 @@ ERROR_SHARE = 0.01  # 5xx, of the last two hours' requests (half that over 24 ho
 CPU_WARN = 0.7  # CPU p99, of the limit
 QUOTA_WARN, QUOTA_ALARM = 0.8, 1.0
 FAST_POLL_S = 5  # long polls whose median wall time is under this are looping
-SOURCE_SHARE = 0.5  # one network, of the last 24 minutes' requests
+SOURCE_SHARE = 0.5  # one address, of the last 24 minutes' requests
 
-# Reports are kept (a room's message is for good, and every reader has it), so
-# an address is never written whole: a network says as much about a flood, and
-# nothing about which house it came from.
-MASK_V4, MASK_V6 = 24, 48
 
 # Colours chosen on the image's own background, so it reads on a light or a
 # dark page alike; red only for 5xx.
@@ -73,15 +68,6 @@ def call(path, body=None):
 
 def graphql(query, variables):
     return call("/graphql", {"query": query, "variables": variables})["data"]["viewer"]
-
-
-def masked(ip):
-    """The network an address is in, never the address."""
-    try:
-        bits = MASK_V4 if ipaddress.ip_address(ip).version == 4 else MASK_V6
-        return str(ipaddress.ip_network(f"{ip}/{bits}", strict=False))
-    except ValueError:
-        return "unknown"
 
 
 zone = os.environ["ZONE"].strip().lower()
@@ -182,10 +168,10 @@ w_cpu99 = max((r["quantiles"]["cpuTimeP99"] for r in W["day"]), default=0) / 100
 w_wall50 = statuses.get("success", {}).get("quantiles", {}).get("wallTimeP50", 0) / 1e6  # µs → s
 prev = W["prev"][0] if W["prev"] else {"sum": {"requests": 0, "errors": 0}, "quantiles": {"cpuTimeP99": 0, "wallTimeP50": 0}}
 
-# Top networks: where the requests come from, over the last 24 minutes (what is
+# Top addresses: where the requests come from, over the last 24 minutes (what is
 # happening now) and 24 hours. A plan without these fields still gets its report.
 SOURCE = "count dimensions{clientIP clientCountryName userAgent edgeResponseStatus}"
-networks = {}
+addresses = {}
 try:
     S = graphql(
         "query($z:String!,$m:Time!,$h:Time!,$e:Time!){viewer{zones(filter:{zoneTag:$z}){"
@@ -197,14 +183,14 @@ try:
     for window in ("recent", "day"):
         for g in S[window]:
             d = g["dimensions"]
-            key = (masked(d["clientIP"]), d["clientCountryName"] or "?", (d["userAgent"] or "?")[:40])
-            n = networks.setdefault(key, {"recent": 0, "day": 0, "recent_4xx": 0})
+            key = (d["clientIP"] or "?", d["clientCountryName"] or "?", (d["userAgent"] or "?")[:40])
+            n = addresses.setdefault(key, {"recent": 0, "day": 0, "recent_4xx": 0})
             n[window] += g["count"]
             if window == "recent" and 400 <= d["edgeResponseStatus"] < 500:
                 n["recent_4xx"] += g["count"]
 except SystemExit:
-    networks = None
-top_networks = sorted((networks or {}).items(), key=lambda kv: (-kv[1]["recent"], -kv[1]["day"], kv[0]))
+    addresses = None
+top_addresses = sorted((addresses or {}).items(), key=lambda kv: (-kv[1]["recent"], -kv[1]["day"], kv[0]))
 
 # Top talkers: a kind of client on a path, a content address being one path.
 talk = {}
@@ -354,10 +340,10 @@ if talkers:
                      f"({n / 1440:.0f}/min).")
     else:
         fine.append("no single client dominates")
-recent_req = sum(n["recent"] for n in (networks or {}).values())
-if top_networks and top_networks[0][1]["recent"] / (recent_req or 1) > SOURCE_SHARE:
-    (net, country, agent), n = top_networks[0]
-    flags.append(f"⚠ **Source:** {net} ({country}, {agent}) made {n['recent'] / recent_req:.0%} of the last "
+recent_req = sum(n["recent"] for n in (addresses or {}).values())
+if top_addresses and top_addresses[0][1]["recent"] / (recent_req or 1) > SOURCE_SHARE:
+    (ip, country, agent), n = top_addresses[0]
+    flags.append(f"⚠ **Source:** {ip} ({country}, {agent}) made {n['recent'] / recent_req:.0%} of the last "
                  f"24 minutes' requests ({n['recent'] / 24:.0f}/min, {pct(n['recent_4xx'], n['recent'])} of them 4xx).")
 since = sum(n for (c, p), n in talk.items() if p.startswith("/v1/since"))
 if since / day_req > 0.5 and w_wall50 and w_wall50 < FAST_POLL_S:
@@ -413,12 +399,12 @@ md += ["**Golden signals** (requests from clients; the Worker's own below them)"
 md += [f"| {name} | {now_v} | {day_v}{' ⚠' if flag else ''} | {prev_v} |" for name, now_v, day_v, prev_v, flag in rows]
 md += ["", f"**Top talkers**, 24 h ({short(day_req)} requests)", "", "| client | path | requests | share |", "|---|---|---:|---:|"]
 md += [f"| {c} | `{p}` | {short(n)} | {n / day_req:.0%}{' ⚠' if n / day_req > POLLER_SHARE else ''} |" for (c, p), n in talkers[:top]]
-if networks is None:
-    md += ["", "_Top networks: this plan or token does not offer them._"]
-elif top_networks:
-    md += ["", "**Top networks** (addresses masked)", "", "| network | where | client | 24 min | 4xx | 24 h |", "|---|---|---|---:|---:|---:|"]
-    md += [f"| `{net}` | {country} | {agent.replace('|', '/')} | {short(n['recent'])} | {pct(n['recent_4xx'], n['recent']) if n['recent'] else ''} | {short(n['day'])} |"
-           for (net, country, agent), n in top_networks[:top]]
+if addresses is None:
+    md += ["", "_Top addresses: this plan or token does not offer them._"]
+elif top_addresses:
+    md += ["", "**Top addresses**", "", "| address | where | client | 24 min | 4xx | 24 h |", "|---|---|---|---:|---:|---:|"]
+    md += [f"| `{ip}` | {country} | {agent.replace('|', '/')} | {short(n['recent'])} | {pct(n['recent_4xx'], n['recent']) if n['recent'] else ''} | {short(n['day'])} |"
+           for (ip, country, agent), n in top_addresses[:top]]
 md += ["", "_Fine: " + "; ".join(fine) + "._" if fine else "",
        f"_{local(now).strftime('%Y-%m-%d %H:%M %Z')}; the last bucket of each chart is still filling. "
        "Client requests are Cloudflare's sampled estimates; the quota counts the Worker's own invocations._"]
