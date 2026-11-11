@@ -62,7 +62,8 @@ req = urllib.request.Request(
     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "application/json"},
 )
 try:
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    # a long draft can take Cohere over two minutes
+    with urllib.request.urlopen(req, timeout=300) as resp:
         res = json.load(resp)
 except urllib.error.HTTPError as e:
     fail(f"Cohere returned HTTP {e.code}: {e.read(500).decode('utf-8', 'replace')}",
