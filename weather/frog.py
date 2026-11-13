@@ -77,8 +77,8 @@ rung -= min(0.3, abs(high - 21) / 40)
 rung = round(max(0.0, min(1.0, rung)), 2)
 
 umbrella = rain >= 0.5 or code in (61, 63, 65, 80, 81, 82, 95)
-verdict = "Umbrella." if umbrella else "Leave the umbrella." if rung >= 0.6 else "Bring a jacket."
-croak = f"Ribbit. {DAYS[day]} in {place.get('name') or location}: {WMO.get(code, 'weather')}, {round(high)}°C, {round(rain * 100)}% rain. {verdict}"
+advice = "Umbrella." if umbrella else "Leave the umbrella." if rung >= 0.6 else "Bring a jacket."
+croak = f"Ribbit. {DAYS[day]} in {place.get('name') or location}: {WMO.get(code, 'weather')}, {round(high)}°C, {round(rain * 100)}% rain. {advice}"
 
 os.makedirs("/output", exist_ok=True)
 with open("/output/rung.txt", "w") as f:

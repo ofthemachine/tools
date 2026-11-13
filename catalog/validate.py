@@ -235,4 +235,4 @@ for e in errors:
 print(f"packs: {len(packs)}  tools: {len(tools)}  okf concepts: {okf_count}  errors: {len(errors)}  warnings: {len(warnings)}")
 if errors or (strict and warnings):
     sys.exit(1)
-print("VERDICT: VALID -- skills-ref, catalog rules, llms.txt, marketplace" + (", OKF bundle" if okf_count else ""))
+print("RESULT: VALID -- skills-ref, catalog rules, llms.txt, marketplace" + (", OKF bundle" if okf_count else ""))
