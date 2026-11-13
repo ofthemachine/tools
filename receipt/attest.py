@@ -1,5 +1,5 @@
 #!/usr/bin/env -S fragletc --image ofthemachine/python3@sha256:a015b4f9f0e7c1648f8fcd4164f6a296dd3c9189404f88f333a9764d08d13522
-#: d=Attest a fragletc run receipt (fraglet-receipt/2) the way OKF's Attested Computation attester does -- deterministic, no re-execution -- and report VERDICT: ATTESTED or VERDICT: REJECTED with every reason. Checks that the computation that ran is the sanctioned script (procedure_hash equals sha256 of the computation file, or the expected hash), that the receipt is internally consistent (memo_key recomputes from its own procedure_hash, params, and inputs under fragletc's documented formula, so an edited params field fails), that any claimed params match, that the run succeeded, and that an artifact claimed to be an output of the run hashes to what the receipt recorded.
+#: d=Attest a fragletc run receipt (fraglet-receipt/2) the way OKF's Attested Computation attester does -- deterministic, no re-execution -- and report RESULT: ATTESTED or RESULT: REJECTED with every reason. Checks that the computation that ran is the sanctioned script (procedure_hash equals sha256 of the computation file, or the expected hash), that the receipt is internally consistent (memo_key recomputes from its own procedure_hash, params, and inputs under fragletc's documented formula, so an edited params field fails), that any claimed params match, that the run succeeded, and that an artifact claimed to be an output of the run hashes to what the receipt recorded.
 #: when=Use when a result (a number, a phrase, an image) claims to have come from a tool run and you need to confirm the run was the sanctioned script with those parameters, or when checking the receipts bundled with a published document, image, or poem.
 #: network=none
 #: stdin=none
@@ -51,7 +51,7 @@ reasons = []
 # 1. A receipt shape this attester understands.
 if r.get("schema") != "fraglet-receipt/2":
     reasons.append(f"schema is {r.get('schema')!r}, expected fraglet-receipt/2")
-    print("VERDICT: REJECTED")
+    print("RESULT: REJECTED")
     for reason in reasons:
         print(f"- {reason}")
     sys.exit(1)
@@ -116,8 +116,8 @@ if artifact:
     elif got not in outputs.values():
         reasons.append(f"artifact hashes to {got}, which is not among the receipt's outputs")
 
-verdict = "ATTESTED" if not reasons else "REJECTED"
-print(f"VERDICT: {verdict}")
+result = "ATTESTED" if not reasons else "REJECTED"
+print(f"RESULT: {result}")
 print(f"procedure: {r.get('procedure', '?')} ({r.get('procedure_hash', '?')})")
 # Execution class is not stored in a receipt; it is a predicate over the invocation
 # (fraglet receipt.Invocation.Class): hermetic iff conformant, network=none, and a

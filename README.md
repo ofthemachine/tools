@@ -37,7 +37,7 @@ tools/                        github.com/ofthemachine/tools  ==  tools.ofthemach
   <pack>/index.md             the pack: title, description, tags
   <pack>/<stem>.<ext>         tools -- nothing else is in a pack
   catalog/compile.py          the build, itself a tool: src.tar.gz in, tools.tar.gz out
-  catalog/validate.py         the validator, itself a tool: tools.tar.gz in, verdict out
+  catalog/validate.py         the validator, itself a tool: tools.tar.gz in, a result out
   catalog/site.py             the website, itself a tool: tools.tar.gz in, site.tar.gz out
   catalog/vendor.py           another repository's tools.lock in, verified tools out
   receipt/attest.py           attests a fragletc receipt against the tool that ran
